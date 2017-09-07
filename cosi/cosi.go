@@ -46,8 +46,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dedis/kyber/abstract"
-	"github.com/dedis/kyber/random"
+	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/crypto.v0/random"
 )
 
 // Commit returns a random scalar v, generated from the given cipher stream,
