@@ -12,26 +12,52 @@ import "gopkg.in/dedis/onet.v1"
 // Name can be used from other packages to refer to this protocol.
 const Name = "Template"
 
-// Announce is used to pass a message to all children.
-type Announce struct {
-	Message string
+type Announcement struct {
+	 list []*onet.TreeNode
+	 shardSize int
+	 seed int
 }
 
-// StructAnnounce just contains Announce and the data necessary to identify and
+// StructAnnouncement just contains Announcement and the data necessary to identify and
 // process the message in the sda framework.
-type StructAnnounce struct {
+type StructAnnouncement struct {
 	*onet.TreeNode
-	Announce
+	Announcement
 }
 
-// Reply returns the count of all children.
-type Reply struct {
-	ChildrenCount int
+type Commitment struct {
+	cosiCommitment []byte //uint64?
+	nodeData []byte
+	//exception if doesn't want to commit?
 }
 
-// StructReply just contains Reply and the data necessary to identify and
+// StructCommitment just contains Commitment and the data necessary to identify and
 // process the message in the sda framework.
-type StructReply struct {
+type StructCommitment struct {
 	*onet.TreeNode
-	Reply
+	Commitment
+}
+
+type Challenge struct {
+	cosiChallenge []byte //uint64?
+	proposal []byte
+}
+
+// StructChallenge just contains Challenge and the data necessary to identify and
+// process the message in the sda framework.
+type StructChallenge struct {
+	*onet.TreeNode
+	Challenge
+}
+
+type Response struct {
+	cosiReponse []byte //uint64?
+	exception error //if the node doesn't want to sign
+}
+
+// StructResponse just contains Response and the data necessary to identify and
+// process the message in the sda framework.
+type StructResponse struct {
+	*onet.TreeNode
+	Response
 }
