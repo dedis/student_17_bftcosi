@@ -60,3 +60,24 @@ func TestGenTreeRoot(t *testing.T) {
 		local.CloseAll()
 	}
 }
+
+func TestGenTreeFirstLevel(t *testing.T) {
+	local := onet.NewLocalTest()
+
+	nodes := []int{1, 2, 5, 13, 20}
+	nbrShards := 12
+	for _, nbrNodes := range nodes {
+
+		wantedShards := nbrShards
+		if nbrNodes < nbrShards {
+			wantedShards = nbrNodes-1
+		}
+
+		_, _, tree := protocol.GenTree(local, nbrNodes, nbrShards, true)
+		actualShards := len(tree.Root.Children)
+		if  actualShards != wantedShards {
+			t.Fatal("There should be", wantedShards, "shards, but there is", actualShards, "shards")
+		}
+		local.CloseAll()
+	}
+}
