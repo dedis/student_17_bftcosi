@@ -26,7 +26,7 @@ func TestNode(t *testing.T) {
 	local := onet.NewLocalTest()
 	nodes := []int{2, 5, 13}
 	for _, nbrNodes := range nodes {
-		_, _, tree := protocol.GenTree(local, nbrNodes, true)
+		_, _, tree := protocol.GenTree(local, nbrNodes, 1, true)
 		log.Lvl3(tree.Dump())
 
 		pi, err := local.StartProtocol("Template", tree)
@@ -39,7 +39,7 @@ func TestNode(t *testing.T) {
 		case children := <-protocol.ChildCount:
 			log.Lvl2("Instance 1 is done")
 			if children != nbrNodes {
-				t.Fatal("Didn't get a child-cound of", nbrNodes)
+				t.Fatal("Didn't get a child-cound of", nbrNodes, ", but got a child count of", children)
 			}
 		case <-time.After(timeout):
 			t.Fatal("Didn't finish in time")
@@ -48,11 +48,12 @@ func TestNode(t *testing.T) {
 	}
 }
 
-func TestGenTree(t *testing.T) {
+func TestGenTreeRoot(t *testing.T) {
 	local := onet.NewLocalTest()
+
 	nodes := []int{1, 2, 5, 13, 20}
 	for _, nbrNodes := range nodes {
-		_, _, tree := protocol.GenTree(local, nbrNodes, true)
+		_, _, tree := protocol.GenTree(local, nbrNodes, 12,  true)
 		if tree.Root == nil {
 			t.Fatal("Tree Root shouldn't be nil")
 		}
