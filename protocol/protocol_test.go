@@ -26,7 +26,7 @@ func TestNode(t *testing.T) {
 	local := onet.NewLocalTest()
 	nodes := []int{2, 5, 13}
 	for _, nbrNodes := range nodes {
-		_, _, tree := local.GenTree(nbrNodes, true)
+		_, _, tree := protocol.GenTree(local, nbrNodes, true)
 		log.Lvl3(tree.Dump())
 
 		pi, err := local.StartProtocol("Template", tree)
@@ -43,6 +43,18 @@ func TestNode(t *testing.T) {
 			}
 		case <-time.After(timeout):
 			t.Fatal("Didn't finish in time")
+		}
+		local.CloseAll()
+	}
+}
+
+func TestGenTree(t *testing.T) {
+	local := onet.NewLocalTest()
+	nodes := []int{1, 2, 5, 13, 20}
+	for _, nbrNodes := range nodes {
+		_, _, tree := protocol.GenTree(local, nbrNodes, true)
+		if tree.Root == nil {
+			t.Fatal("Tree Root shouldn't be nil")
 		}
 		local.CloseAll()
 	}
