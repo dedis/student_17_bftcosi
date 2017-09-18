@@ -16,6 +16,7 @@ type Announcement struct {
 	 list []*onet.TreeNode
 	 shardSize int
 	 seed int
+	 proposal []byte
 }
 
 // StructAnnouncement just contains Announcement and the data necessary to identify and
@@ -28,7 +29,7 @@ type StructAnnouncement struct {
 type Commitment struct {
 	cosiCommitment []byte //uint64?
 	nodeData []byte
-	//exception if doesn't want to commit?
+	exception error //if the node doesn't want to sign
 }
 
 // StructCommitment just contains Commitment and the data necessary to identify and
@@ -40,7 +41,6 @@ type StructCommitment struct {
 
 type Challenge struct {
 	cosiChallenge []byte //uint64?
-	proposal []byte
 }
 
 // StructChallenge just contains Challenge and the data necessary to identify and
@@ -52,7 +52,6 @@ type StructChallenge struct {
 
 type Response struct {
 	cosiReponse []byte //uint64?
-	exception error //if the node doesn't want to sign
 }
 
 // StructResponse just contains Response and the data necessary to identify and
@@ -61,3 +60,4 @@ type StructResponse struct {
 	*onet.TreeNode
 	Response
 }
+gg
