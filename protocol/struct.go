@@ -60,4 +60,3 @@ type StructResponse struct {
 	*onet.TreeNode
 	Response
 }
-gg
