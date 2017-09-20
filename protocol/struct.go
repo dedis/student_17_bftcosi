@@ -62,7 +62,7 @@ type StructResponse struct {
 }
 
 // ------------------- TO DELETE -------------------
-
+//TODO: delete those types once protocol working
 
 // Announce is used to pass a message to all children.
 type Announce struct {

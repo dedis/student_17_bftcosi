@@ -22,6 +22,7 @@ func TestMain(m *testing.M) {
 
 // Tests a 2, 5 and 13-node system. It is good practice to test different
 // sizes of trees to make sure your protocol is stable.
+//TODO: delete this function once protocol working
 func TestNode(t *testing.T) {
 	local := onet.NewLocalTest()
 	nodes := []int{2, 5, 13}
@@ -48,6 +49,7 @@ func TestNode(t *testing.T) {
 	}
 }
 
+//tests the root of the tree
 func TestGenTreeRoot(t *testing.T) {
 	local := onet.NewLocalTest()
 
@@ -57,10 +59,27 @@ func TestGenTreeRoot(t *testing.T) {
 		if tree.Root == nil {
 			t.Fatal("Tree Root shouldn't be nil")
 		}
+		testNode(t, tree.Root, nil, tree)
 		local.CloseAll()
 	}
 }
 
+//tests the number of nodes of the tree
+func TestGenTreeCount(t *testing.T) {
+	local := onet.NewLocalTest()
+
+	nodes := []int{1, 2, 5, 13, 20}
+	for _, nbrNodes := range nodes {
+		_, _, tree := protocol.GenTree(local, nbrNodes, 12,  true)
+		if tree.Size() != nbrNodes {
+			t.Fatal("The tree should contain", nbrNodes, "nodes, but contains", tree.Size(), "nodes")
+		}
+		testNode(t, tree.Root, nil, tree)
+		local.CloseAll()
+	}
+}
+
+//tests that the generated tree has the good number of shards
 func TestGenTreeFirstLevel(t *testing.T) {
 	local := onet.NewLocalTest()
 
@@ -79,5 +98,45 @@ func TestGenTreeFirstLevel(t *testing.T) {
 			t.Fatal("There should be", wantedShards, "shards, but there is", actualShards, "shards")
 		}
 		local.CloseAll()
+	}
+}
+
+//tests the complete tree
+func TestGenTreeComplete(t *testing.T) {
+	local := onet.NewLocalTest()
+
+	nodes := []int{1, 2, 5, 13, 20}
+	nbrShards := 12
+	for _, nbrNodes := range nodes {
+
+		_, _, tree := protocol.GenTree(local, nbrNodes, nbrShards, true)
+
+		nodes_depth_2 := ((nbrNodes-1) / nbrShards) -1
+		for _, n := range tree.Root.Children {
+			if len(n.Children) < nodes_depth_2 || len(n.Children) > nodes_depth_2+1 {
+				t.Fatal(nbrNodes, "node(s),", nbrShards,"shards: There should be",
+					nodes_depth_2, "to", nodes_depth_2+1,"second level node(s)," +
+					" but there is a shard with", len(n.Children), "second level node(s).")
+			}
+			testNode(t, n, tree.Root, tree)
+			for _,m := range n.Children {
+				if len(m.Children) > 0 {
+					t.Fatal("the tree should be at most 2 level deep, but is not")
+				}
+				testNode(t, m, n, tree)
+			}
+		}
+		local.CloseAll()
+	}
+}
+
+//global tests to be performed on every node,
+func testNode(t *testing.T, node, parent *onet.TreeNode, tree *onet.Tree) {
+	if node.Parent != parent {
+		t.Fatal("a node is a child of another, but has not its parent in the field \"parent\"")
+	}
+	addr, _ := tree.Roster.Search(node.ServerIdentity.ID)
+	if addr == -1 {
+		t.Fatal("a node in the tree is runing on a server that is not in the tree's roster")
 	}
 }
