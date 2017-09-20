@@ -1,8 +1,7 @@
-package protocol //TODO: protocol_test ?
+package protocol
 
 import (
 	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/network"
 )
 
 // GenTree will create a tree of n servers with a localRouter, and returns the
@@ -14,42 +13,46 @@ func GenTree(l *onet.LocalTest, n_nodes, n_shards int, register bool) ([]*onet.S
 		n_shards = n_nodes-1
 	}
 
-	//generate top-level of the tree
+	//generate servers
 	servers := l.GenServers(n_nodes)
+	roster := l.GenRosterFromHost(servers...)
+
+	//generate first level of the tree
 	n_top_level_nodes := n_shards+1
-	roster := l.GenRosterFromHost(servers[:n_top_level_nodes]...)
-	tree := roster.GenerateNaryTree(n_shards)
-	l.Trees[tree.ID] = tree
-	if register {
-		//servers[0].overlay.RegisterRoster(list)
-		//servers[0].overlay.RegisterTree(tree)
+	root_node := onet.NewTreeNode(0, roster.List[0])
+	for i := range servers[:n_top_level_nodes] {
+		node := onet.NewTreeNode(i, roster.List[i])
+		if i > 0 {
+			node.Parent = root_node
+			root_node.Children = append(root_node.Children, node)
+		}
 	}
+
+
 
 	if n_top_level_nodes != n_nodes {
 
 		nodes_per_shard := (n_nodes - 1) / n_shards
 
 		//generate each shard
-		for i, s := range servers[1:n_top_level_nodes] {
+		for i, n := range root_node.Children {
 			start := i*(nodes_per_shard-1) + n_top_level_nodes
 			end := start + (nodes_per_shard-1)
-			shards_servers := append(servers[start:end], s)
 
-			shard_roster := l.GenRosterFromHost(shards_servers...)
-			shard_roster.GenerateNaryTreeWithRoot(nodes_per_shard, s.ServerIdentity)
-			if register {
-				//servers[0].overlay.RegisterRoster(shard_list)
-				//servers[0].overlay.RegisterTree(shard_tree)
+			for j := start ; j < end ; j++ {
+				node := onet.NewTreeNode(j, roster.List[j])
+				node.Parent = n
+				root_node.Children = append(n.Children, node)
 			}
 		}
+	}
 
-		var server_identities []*network.ServerIdentity
-		for _, server := range servers {
-			server_identities = append(server_identities, server.ServerIdentity)
-		}
+	tree := onet.NewTree(roster, root_node)
 
-		roster = onet.NewRoster(server_identities)
-		tree.Roster = roster
+	l.Trees[tree.ID] = tree
+	if register {
+		//servers[0].overlay.RegisterRoster(list)
+		//servers[0].overlay.RegisterTree(tree)
 	}
 
 	return servers, roster, tree
