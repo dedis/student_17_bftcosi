@@ -29,21 +29,26 @@ func GenTree(l *onet.LocalTest, n_nodes, n_shards int, register bool) ([]*onet.S
 	}
 
 
-
+	//generate each shard
 	if n_top_level_nodes != n_nodes {
 
 		nodes_per_shard := (n_nodes - 1) / n_shards
+		surplus_nodes := (n_nodes - 1) % n_shards
 
-		//generate each shard
+		start := n_top_level_nodes
 		for i, n := range root_node.Children {
-			start := i*(nodes_per_shard-1) + n_top_level_nodes
+
 			end := start + (nodes_per_shard-1)
+			if i<surplus_nodes { //to handle surplus nodes
+				end++
+			}
 
 			for j := start ; j < end ; j++ {
 				node := onet.NewTreeNode(j, roster.List[j])
 				node.Parent = n
-				root_node.Children = append(n.Children, node)
+				n.Children = append(n.Children, node)
 			}
+			start = end
 		}
 	}
 
