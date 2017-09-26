@@ -133,7 +133,7 @@ func TestGenTreeComplete(t *testing.T) {
 //global tests to be performed on every node,
 func testNode(t *testing.T, node, parent *onet.TreeNode, tree *onet.Tree) {
 	if node.Parent != parent {
-		t.Fatal("a node is a child of another, but has not its parent in the field \"parent\"")
+		t.Fatal("a node has not the right parent in the field \"parent\"")
 	}
 	addr, _ := tree.Roster.Search(node.ServerIdentity.ID)
 	if addr == -1 {
