@@ -7,7 +7,7 @@ import (
 // GenTree will create a tree of n servers with a localRouter, and returns the
 // list of servers and the associated roster / tree.
 // NOTE: register being not implementable with the current API could hurt the scalability tests
-func GenTree(l *onet.LocalTest, n_nodes, n_shards int, registerOLD bool) ([]*onet.Server, *onet.Roster, *onet.Tree) {
+func GenTree(l *onet.LocalTest, n_nodes, n_shards int) ([]*onet.Server, *onet.Roster, *onet.Tree) {
 
 	if n_nodes < n_shards {
 		n_shards = n_nodes-1
@@ -54,11 +54,11 @@ func GenTree(l *onet.LocalTest, n_nodes, n_shards int, registerOLD bool) ([]*one
 
 	tree := onet.NewTree(roster, root_node)
 
-	l.Trees[tree.ID] = tree
-	if registerOLD {
-		//servers[0].overlay.RegisterRoster(list)
-		//servers[0].overlay.RegisterTree(tree)
-	}
+	//l.Trees[tree.ID] = tree
+	//if registerOLD {
+	//	servers[0].overlay.RegisterRoster(list)
+	//	servers[0].overlay.RegisterTree(tree)
+	//}
 
 	return servers, roster, tree
 }

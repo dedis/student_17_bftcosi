@@ -7,7 +7,10 @@ with the `*onet.TreeNode` embedded. The latter is used in the handler-function
 so that it can find out who sent the message.
 */
 
-import "gopkg.in/dedis/onet.v1"
+import (
+	"gopkg.in/dedis/onet.v1"
+	"gopkg.in/dedis/crypto.v0/abstract"
+)
 
 // Name can be used from other packages to refer to this protocol.
 const Name = "Template"
@@ -27,7 +30,7 @@ type StructAnnouncement struct {
 }
 
 type Commitment struct {
-	cosiCommitment []byte //uint64?
+	cosiCommitment abstract.Point
 	nodeData []byte
 	exception error //if the node doesn't want to sign
 }
@@ -40,7 +43,7 @@ type StructCommitment struct {
 }
 
 type Challenge struct {
-	cosiChallenge []byte //uint64?
+	cosiChallenge abstract.Scalar
 }
 
 // StructChallenge just contains Challenge and the data necessary to identify and
@@ -51,7 +54,7 @@ type StructChallenge struct {
 }
 
 type Response struct {
-	cosiReponse []byte //uint64?
+	cosiReponse abstract.Scalar
 }
 
 // StructResponse just contains Response and the data necessary to identify and

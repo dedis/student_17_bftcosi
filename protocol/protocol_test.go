@@ -27,7 +27,7 @@ func TestNode(t *testing.T) {
 	local := onet.NewLocalTest()
 	nodes := []int{2, 5, 13}
 	for _, nbrNodes := range nodes {
-		_, _, tree := protocol.GenTree(local, nbrNodes, 1, true)
+		_, _, tree := protocol.GenTree(local, nbrNodes, 1)
 		log.Lvl3(tree.Dump())
 
 		pi, err := local.StartProtocol("Template", tree)
@@ -55,7 +55,7 @@ func TestGenTreeRoot(t *testing.T) {
 
 	nodes := []int{1, 2, 5, 13, 20}
 	for _, nbrNodes := range nodes {
-		_, _, tree := protocol.GenTree(local, nbrNodes, 12,  true)
+		_, _, tree := protocol.GenTree(local, nbrNodes, 12)
 		if tree.Root == nil {
 			t.Fatal("Tree Root shouldn't be nil")
 		}
@@ -70,7 +70,7 @@ func TestGenTreeCount(t *testing.T) {
 
 	nodes := []int{1, 2, 5, 13, 20}
 	for _, nbrNodes := range nodes {
-		_, _, tree := protocol.GenTree(local, nbrNodes, 12,  true)
+		_, _, tree := protocol.GenTree(local, nbrNodes, 12)
 		if tree.Size() != nbrNodes {
 			t.Fatal("The tree should contain", nbrNodes, "nodes, but contains", tree.Size(), "nodes")
 		}
@@ -92,7 +92,7 @@ func TestGenTreeFirstLevel(t *testing.T) {
 			wantedShards = nbrNodes-1
 		}
 
-		_, _, tree := protocol.GenTree(local, nbrNodes, nbrShards, true)
+		_, _, tree := protocol.GenTree(local, nbrNodes, nbrShards)
 		actualShards := len(tree.Root.Children)
 		if  actualShards != wantedShards {
 			t.Fatal("There should be", wantedShards, "shards, but there is", actualShards, "shards")
@@ -109,7 +109,7 @@ func TestGenTreeComplete(t *testing.T) {
 	nbrShards := 12
 	for _, nbrNodes := range nodes {
 
-		_, _, tree := protocol.GenTree(local, nbrNodes, nbrShards, true)
+		_, _, tree := protocol.GenTree(local, nbrNodes, nbrShards)
 
 		nodes_depth_2 := ((nbrNodes-1) / nbrShards) -1
 		for _, n := range tree.Root.Children {
