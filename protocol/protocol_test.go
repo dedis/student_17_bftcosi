@@ -27,10 +27,17 @@ func TestNode(t *testing.T) {
 	local := onet.NewLocalTest()
 	nodes := []int{2, 5, 13}
 	for _, nbrNodes := range nodes {
-		_, _, tree := protocol.GenTree(local, nbrNodes, 1)
+
+		servers := local.GenServers(nbrNodes)
+		roster := local.GenRosterFromHost(servers...)
+
+		err, tree := protocol.GenTree(roster, nbrNodes, 1)
+		if err != nil {
+			t.Fatal("Error in tree generation:", err)
+		}
 		log.Lvl3(tree.Dump())
 
-		pi, err := local.StartProtocol("Template", tree)
+		pi, err := local.StartProtocol(protocol.Name, tree)
 		if err != nil {
 			t.Fatal("Couldn't start protocol:", err)
 		}
@@ -55,7 +62,13 @@ func TestGenTreeRoot(t *testing.T) {
 
 	nodes := []int{1, 2, 5, 13, 20}
 	for _, nbrNodes := range nodes {
-		_, _, tree := protocol.GenTree(local, nbrNodes, 12)
+		servers := local.GenServers(nbrNodes)
+		roster := local.GenRosterFromHost(servers...)
+
+		err, tree := protocol.GenTree(roster, nbrNodes, 12)
+		if err != nil {
+			t.Fatal("Error in tree generation:", err)
+		}
 		if tree.Root == nil {
 			t.Fatal("Tree Root shouldn't be nil")
 		}
@@ -70,7 +83,13 @@ func TestGenTreeCount(t *testing.T) {
 
 	nodes := []int{1, 2, 5, 13, 20}
 	for _, nbrNodes := range nodes {
-		_, _, tree := protocol.GenTree(local, nbrNodes, 12)
+		servers := local.GenServers(nbrNodes)
+		roster := local.GenRosterFromHost(servers...)
+
+		err, tree := protocol.GenTree(roster, nbrNodes, 12)
+		if err != nil {
+			t.Fatal("Error in tree generation:", err)
+		}
 		if tree.Size() != nbrNodes {
 			t.Fatal("The tree should contain", nbrNodes, "nodes, but contains", tree.Size(), "nodes")
 		}
@@ -92,7 +111,13 @@ func TestGenTreeFirstLevel(t *testing.T) {
 			wantedShards = nbrNodes-1
 		}
 
-		_, _, tree := protocol.GenTree(local, nbrNodes, nbrShards)
+		servers := local.GenServers(nbrNodes)
+		roster := local.GenRosterFromHost(servers...)
+
+		err, tree := protocol.GenTree(roster, nbrNodes, nbrShards)
+		if err != nil {
+			t.Fatal("Error in tree generation:", err)
+		}
 		actualShards := len(tree.Root.Children)
 		if  actualShards != wantedShards {
 			t.Fatal("There should be", wantedShards, "shards, but there is", actualShards, "shards")
@@ -109,13 +134,19 @@ func TestGenTreeComplete(t *testing.T) {
 	nbrShards := 12
 	for _, nbrNodes := range nodes {
 
-		_, _, tree := protocol.GenTree(local, nbrNodes, nbrShards)
+		servers := local.GenServers(nbrNodes)
+		roster := local.GenRosterFromHost(servers...)
 
-		nodes_depth_2 := ((nbrNodes-1) / nbrShards) -1
+		err, tree := protocol.GenTree(roster, nbrNodes, nbrShards)
+		if err != nil {
+			t.Fatal("Error in tree generation:", err)
+		}
+
+		nodesDepth2 := ((nbrNodes-1) / nbrShards) -1
 		for _, n := range tree.Root.Children {
-			if len(n.Children) < nodes_depth_2 || len(n.Children) > nodes_depth_2+1 {
+			if len(n.Children) < nodesDepth2 || len(n.Children) > nodesDepth2+1 {
 				t.Fatal(nbrNodes, "node(s),", nbrShards,"shards: There should be",
-					nodes_depth_2, "to", nodes_depth_2+1,"second level node(s)," +
+					nodesDepth2, "to", nodesDepth2+1,"second level node(s)," +
 					" but there is a shard with", len(n.Children), "second level node(s).")
 			}
 			testNode(t, n, tree.Root, tree)
@@ -138,5 +169,112 @@ func testNode(t *testing.T, node, parent *onet.TreeNode, tree *onet.Tree) {
 	addr, _ := tree.Roster.Search(node.ServerIdentity.ID)
 	if addr == -1 {
 		t.Fatal("a node in the tree is runing on a server that is not in the tree's roster")
+	}
+}
+
+
+//tests that the GenTree function returns errors correctly
+func TestGenTreeErrors(t *testing.T) {
+	local := onet.NewLocalTest()
+
+	negativeNumbers := []int{0, -1, -2, -12, -34}
+	positiveNumber := 12
+	for _, negativeNumber := range negativeNumbers {
+
+		servers := local.GenServers(positiveNumber)
+		roster := local.GenRosterFromHost(servers...)
+
+		err, tree := protocol.GenTree(roster, negativeNumber, positiveNumber)
+		if err == nil {
+			t.Fatal("the GenTree function should throw an error" +
+				" with negative number of nodes, but doesn't")
+		}
+		if tree != nil {
+			t.Fatal("the GenTree function should return a nil tree" +
+			" with errors, but doesn't")
+		}
+
+		err, tree = protocol.GenTree(roster, positiveNumber, negativeNumber)
+		if err == nil {
+			t.Fatal("the GenTree function should throw an error" +
+				" with negative number of shards, but doesn't")
+		}
+		if tree != nil {
+			t.Fatal("the GenTree function should return a nil tree" +
+				" with errors, but doesn't")
+		}
+
+		local.CloseAll()
+	}
+}
+
+//tests that the GenTree function returns roster errors correctly
+func TestGenTreeRosterErrors(t *testing.T) {
+	local := onet.NewLocalTest()
+
+	err, tree := protocol.GenTree(nil, 12, 3)
+	if err == nil {
+		t.Fatal("the GenTree function should throw an error" +
+			" with an nil roster, but doesn't")
+	}
+	if tree != nil {
+		t.Fatal("the GenTree function should return a nil tree" +
+			" with errors, but doesn't")
+	}
+
+	servers := local.GenServers(0)
+	roster := local.GenRosterFromHost(servers...)
+
+	err, tree = protocol.GenTree(roster, 12, 3)
+	if err == nil {
+		t.Fatal("the GenTree function should throw an error" +
+			" with an empty roster, but doesn't")
+	}
+	if tree != nil {
+		t.Fatal("the GenTree function should return a nil tree" +
+			" with errors, but doesn't")
+	}
+
+	local.CloseAll()
+}
+
+//tests that the GenTree function uses as many different servers from the roster as possible
+func TestGenTreeUsesWholeRoster(t *testing.T) {
+	local := onet.NewLocalTest()
+
+	servers := []int{1, 2, 5, 13, 20}
+	nbrNodes := 5
+	for _, nbrServers := range servers {
+
+		servers := local.GenServers(nbrServers)
+		roster := local.GenRosterFromHost(servers...)
+
+		err, tree := protocol.GenTree(roster, nbrNodes, 4)
+		if err != nil {
+			t.Fatal("Error in tree generation:", err)
+		}
+
+		serverSet := make(map[*network.ServerIdentity]bool)
+		expectedUsedServers := nbrNodes
+		if nbrServers < nbrNodes {
+			expectedUsedServers = nbrServers
+		}
+
+		//get all the used serverIdentities
+		serverSet[tree.Root.ServerIdentity] = true
+		for _, n := range tree.Root.Children {
+			serverSet[n.ServerIdentity] = true
+			for _, m := range n.Children {
+				serverSet[m.ServerIdentity] = true
+			}
+		}
+
+		if len(serverSet) != expectedUsedServers {
+			t.Fatal("the generated tree should use", expectedUsedServers,
+				"different servers but uses", len(serverSet))
+		}
+
+
+		local.CloseAll()
 	}
 }
