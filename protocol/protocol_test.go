@@ -22,38 +22,36 @@ func TestMain(m *testing.M) {
 
 // Tests a 2, 5 and 13-node system. It is good practice to test different
 // sizes of trees to make sure your protocol is stable.
-//TODO: delete this function once protocol working
-func TestNode(t *testing.T) {
+func TestCosiTwoNodes(t *testing.T) {
 	local := onet.NewLocalTest()
-	nodes := []int{2, 5, 13}
-	for _, nbrNodes := range nodes {
 
-		servers := local.GenServers(nbrNodes)
-		roster := local.GenRosterFromHost(servers...)
+	nbrNodes := 2
+	servers := local.GenServers(nbrNodes)
+	roster := local.GenRosterFromHost(servers...)
 
-		err, tree := protocol.GenTree(roster, nbrNodes, 1)
-		if err != nil {
-			t.Fatal("Error in tree generation:", err)
-		}
-		log.Lvl3(tree.Dump())
-
-		pi, err := local.StartProtocol(protocol.Name, tree)
-		if err != nil {
-			t.Fatal("Couldn't start protocol:", err)
-		}
-		protocol := pi.(*protocol.Template)
-		timeout := network.WaitRetry * time.Duration(network.MaxRetryConnect*nbrNodes*2) * time.Millisecond
-		select {
-		case children := <-protocol.ChildCount:
-			log.Lvl2("Instance 1 is done")
-			if children != nbrNodes {
-				t.Fatal("Didn't get a child-cound of", nbrNodes, ", but got a child count of", children)
-			}
-		case <-time.After(timeout):
-			t.Fatal("Didn't finish in time")
-		}
-		local.CloseAll()
+	err, tree := protocol.GenTree(roster, nbrNodes, 1)
+	if err != nil {
+		t.Fatal("Error in tree generation:", err)
 	}
+	log.Lvl3(tree.Dump())
+
+	pi, err := local.StartProtocol(protocol.Name, tree)
+	if err != nil {
+		t.Fatal("Couldn't start protocol:", err)
+	}
+	protocol := pi.(*protocol.Cosi)
+	timeout := network.WaitRetry * time.Duration(network.MaxRetryConnect*nbrNodes*2) * time.Millisecond
+	select {
+	case finalAggregate := <-protocol.AggregateCommitment:
+		log.Lvl2("Instance 1 is done")
+		if finalAggregate.Exception != nil {
+			t.Fatal("Error in aggregate:", finalAggregate.Exception)
+		}
+		//TODO: verify aggregate
+	case <-time.After(timeout):
+		t.Fatal("Didn't finish in time")
+	}
+	local.CloseAll()
 }
 
 //tests the root of the tree

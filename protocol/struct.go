@@ -13,13 +13,13 @@ import (
 )
 
 // Name can be used from other packages to refer to this protocol.
-const Name = "Template"
+const Name = "Cosi"
 
 type Announcement struct {
-	 list []*onet.TreeNode
-	 shardSize int
-	 seed int
-	 proposal []byte
+	 List []*onet.TreeNode
+	 ShardSize int
+	 Seed int
+	 Proposal []byte
 }
 
 // StructAnnouncement just contains Announcement and the data necessary to identify and
@@ -30,9 +30,9 @@ type StructAnnouncement struct {
 }
 
 type Commitment struct {
-	cosiCommitment abstract.Point
-	nodeData []byte
-	exception error //if the node doesn't want to sign
+	CosiCommitment abstract.Point
+	NodeData       []byte
+	Exception      error //if the node doesn't want to sign
 }
 
 // StructCommitment just contains Commitment and the data necessary to identify and
@@ -43,7 +43,7 @@ type StructCommitment struct {
 }
 
 type Challenge struct {
-	cosiChallenge abstract.Scalar
+	CosiChallenge abstract.Scalar
 }
 
 // StructChallenge just contains Challenge and the data necessary to identify and
@@ -54,7 +54,7 @@ type StructChallenge struct {
 }
 
 type Response struct {
-	cosiReponse abstract.Scalar
+	CosiReponse abstract.Scalar
 }
 
 // StructResponse just contains Response and the data necessary to identify and
@@ -62,31 +62,4 @@ type Response struct {
 type StructResponse struct {
 	*onet.TreeNode
 	Response
-}
-
-// ------------------- TO DELETE -------------------
-//TODO: delete those types once protocol working
-
-// Announce is used to pass a message to all children.
-type Announce struct {
-	Message string
-}
-
-// StructAnnounce just contains Announce and the data necessary to identify and
-// process the message in the sda framework.
-type StructAnnounce struct {
-	*onet.TreeNode
-	Announce
-}
-
-// Reply returns the count of all children.
-type Reply struct {
-	ChildrenCount int
-}
-
-// StructReply just contains Reply and the data necessary to identify and
-// process the message in the sda framework.
-type StructReply struct {
-	*onet.TreeNode
-	Reply
 }
