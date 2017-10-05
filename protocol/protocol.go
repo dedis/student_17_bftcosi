@@ -35,22 +35,26 @@ func init() {
 // root-node will write to the channel.
 type Cosi struct {
 	*onet.TreeNodeInstance
-	list []*onet.TreeNode
-	shardSize int
-	seed int
-	proposal []byte
+	List                []*onet.TreeNode
+	MinShardSize        int // can be one more
+	Seed                int
+	Proposal            []byte
 	AggregateCommitment chan Commitment
 }
 
 // NewProtocol initialises the structure for use in one round
 func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
+	nShards := len(n.Root().Children)
+	if nShards < 1 { //to avoid divBy0 in one node tree
+		nShards = 1
+	}
 	c := &Cosi{
-		TreeNodeInstance: n,
-		list: n.Tree().List(),
-		shardSize: len(n.Root().Children),
-		seed: 13213, //TODO: see how generate
-		proposal: nil,
-		AggregateCommitment:       make(chan Commitment),
+		TreeNodeInstance:    n,
+		List:                n.Tree().List(),
+		MinShardSize:        n.Tree().Size()-1 / nShards,
+		Seed:                13213, //TODO: see how generate
+		Proposal:            nil,
+		AggregateCommitment: make(chan Commitment),
 	} //TODO: see if should add TreeNodeIndex
 
 	for _, handler := range []interface{}{c.HandleAnnouncement, c.HandleCommitment} {
@@ -65,7 +69,7 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 func (p *Cosi) Start() error {
 	log.Lvl3("Starting Cosi")
 	return p.HandleAnnouncement(StructAnnouncement{p.TreeNode(),
-		Announcement{p.list, p.shardSize, p.seed, p.proposal}})
+		Announcement{p.List, p.MinShardSize, p.Seed, p.Proposal}})
 }
 
 // HandleAnnouncement announce the start of the protocol by the leader (tree root) to all nodes.
@@ -101,7 +105,7 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 	commitments = append(commitments, commitment)
 
 	//generate personal mask
-	err, mask := generateMask(p.list, p.TreeNode().ID)
+	err, mask := generateMask(p.List, p.TreeNode().ID)
 	if err != nil {
 		return err
 	}
