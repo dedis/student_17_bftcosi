@@ -35,7 +35,7 @@ func init() {
 // root-node will write to the channel.
 type Cosi struct {
 	*onet.TreeNodeInstance
-	List                []*onet.TreeNode
+	List                []abstract.Point
 	MinShardSize        int // can be one more
 	Seed                int
 	Proposal            []byte
@@ -44,16 +44,22 @@ type Cosi struct {
 
 // NewProtocol initialises the structure for use in one round
 func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
+
 	nShards := len(n.Root().Children)
-	if nShards < 1 { //to avoid divBy0 in one node tree
+	if nShards < 1 { //to avoid divBy0 with one node tree
 		nShards = 1
 	}
+	var list []abstract.Point
+	for _, t := range n.Tree().List() {
+		list = append(list, t.PublicAggregateSubTree)
+	}
+
 	c := &Cosi{
 		TreeNodeInstance:    n,
-		List:                n.Tree().List(),
+		List:                list,
 		MinShardSize:        n.Tree().Size()-1 / nShards,
 		Seed:                13213, //TODO: see how generate
-		Proposal:            nil,
+		Proposal:            make([]byte, 0),
 		AggregateCommitment: make(chan Commitment),
 	} //TODO: see if should add TreeNodeIndex
 
@@ -69,7 +75,7 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 func (p *Cosi) Start() error {
 	log.Lvl3("Starting Cosi")
 	return p.HandleAnnouncement(StructAnnouncement{p.TreeNode(),
-		Announcement{p.List, p.MinShardSize, p.Seed, p.Proposal}})
+		Announcement{p.MinShardSize, p.Seed, p.Proposal}})
 }
 
 // HandleAnnouncement announce the start of the protocol by the leader (tree root) to all nodes.
@@ -92,11 +98,12 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 	defer p.Done() //TODO: remove once final state is implemented
 	log.Lvl3(p.ServerIdentity().Address, ": received commitment to handle")
 
+	//extract lists of commitments and masks
 	var commitments []abstract.Point
 	var masks [][]byte
 	for _, c := range structCommitments {
 		commitments = append(commitments, c.CosiCommitment)
-		masks = append(masks, c.NodeData)
+		masks = append(masks, c.Mask.Mask())
 	}
 
 	//generate personal commitment
@@ -105,16 +112,24 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 	commitments = append(commitments, commitment)
 
 	//generate personal mask
-	err, mask := generateMask(p.List, p.TreeNode().ID)
+	mask, err := cosi.NewMask(p.Suite(), p.List, p.TreeNode().PublicAggregateSubTree)
 	if err != nil {
 		return err
 	}
-	masks = append(masks, mask)
+	masks = append(masks, mask.Mask())
 
-
+	//aggregate commitments and masks
 	var aggCommitment Commitment
-	aggCommitment.CosiCommitment, aggCommitment.NodeData, aggCommitment.Exception =
+	var aggMask []byte
+	aggCommitment.CosiCommitment, aggMask, err =
 		cosi.AggregateCommitments(p.Suite(), commitments, masks)
+	if err != nil {
+		return err
+	}
+	err = aggCommitment.Mask.SetMask(aggMask)
+	if err != nil {
+		return err
+	}
 
 	log.Lvl3(p.ServerIdentity().Address, "is done aggregating commitments with total of",
 		len(commitments), "commitments")
@@ -125,21 +140,4 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 	log.Lvl3("Root-node is done")
 	p.AggregateCommitment <- aggCommitment
 	return nil
-}
-
-//generate mask for one given node in O(n)
-func generateMask(list []*onet.TreeNode, ID onet.TreeNodeID) (error, []byte) {
-
-	mask := make([]byte, len(list))
-	foundIndex := -1
-	for i, n := range list {
-		if n.ID == ID {
-			foundIndex = i
-		}
-	}
-	if foundIndex == -1 {
-		return errors.New("node index not found in list"), nil
-	}
-	mask[foundIndex] = 0xFF
-	return nil, mask
 }
