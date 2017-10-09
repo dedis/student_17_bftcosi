@@ -49,6 +49,7 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	if nShards < 1 { //to avoid divBy0 with one node tree
 		nShards = 1
 	}
+
 	var list []abstract.Point
 	for _, t := range n.Tree().List() {
 		list = append(list, t.PublicAggregateSubTree)
@@ -64,7 +65,8 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	} //TODO: see if should add TreeNodeIndex
 
 	for _, handler := range []interface{}{c.HandleAnnouncement, c.HandleCommitment} {
-		if err := c.RegisterHandler(handler); err != nil {
+		err := c.RegisterHandler(handler)
+		if err != nil {
 			return nil, errors.New("couldn't register handler: " + err.Error())
 		}
 	}
@@ -95,7 +97,7 @@ func (p *Cosi) HandleAnnouncement(msg StructAnnouncement) error {
 // HandleReply is the message going up the tree and holding a counter
 // to verify the number of nodes.
 func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
-	defer p.Done() //TODO: remove once final state is implemented
+	defer p.Done() //TODO: move this instruction to final state once implemented
 	log.Lvl3(p.ServerIdentity().Address, ": received commitment to handle")
 
 	//extract lists of commitments and masks
@@ -112,14 +114,18 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 	commitments = append(commitments, commitment)
 
 	//generate personal mask
-	mask, err := cosi.NewMask(p.Suite(), p.List, p.TreeNode().PublicAggregateSubTree)
-	if err != nil {
-		return err
-	}
-	masks = append(masks, mask.Mask())
+	//mask, err := cosi.NewMask(p.Suite(), p.List, p.TreeNode().PublicAggregateSubTree)
+	//if err != nil {
+	//	return err
+	//}
+	//masks = append(masks, mask.Mask())
+	mask := make([]byte, 0)
+	masks = append(masks, mask)
+	var err error
 
 	//aggregate commitments and masks
 	var aggCommitment Commitment
+	//aggCommitment.Mask = *mask
 	var aggMask []byte
 	aggCommitment.CosiCommitment, aggMask, err =
 		cosi.AggregateCommitments(p.Suite(), commitments, masks)
