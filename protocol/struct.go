@@ -10,7 +10,6 @@ so that it can find out who sent the message.
 import (
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/crypto.v0/abstract"
-	"github.com/dedis/student_17_bftcosi/cosi"
 )
 
 // Name can be used from other packages to refer to this protocol.
@@ -32,7 +31,9 @@ type StructAnnouncement struct {
 
 type Commitment struct {
 	CosiCommitment abstract.Point
-	Mask       cosi.Mask
+	Mask       []byte
+
+	//TODO: see if should use something else instead, as error doesn't have a constructor to be used by the decoder at the node reception
 	Exception      error //if the node doesn't want to sign
 }
 

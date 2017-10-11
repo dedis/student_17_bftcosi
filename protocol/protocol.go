@@ -105,7 +105,7 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 	var masks [][]byte
 	for _, c := range structCommitments {
 		commitments = append(commitments, c.CosiCommitment)
-		masks = append(masks, c.Mask.Mask())
+		masks = append(masks, c.Mask)
 	}
 
 	//generate personal commitment
@@ -114,25 +114,16 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 	commitments = append(commitments, commitment)
 
 	//generate personal mask
-	//mask, err := cosi.NewMask(p.Suite(), p.List, p.TreeNode().PublicAggregateSubTree)
-	//if err != nil {
-	//	return err
-	//}
-	//masks = append(masks, mask.Mask())
-	mask := make([]byte, 0)
-	masks = append(masks, mask)
-	var err error
-
-	//aggregate commitments and masks
-	var aggCommitment Commitment
-	//aggCommitment.Mask = *mask
-	var aggMask []byte
-	aggCommitment.CosiCommitment, aggMask, err =
-		cosi.AggregateCommitments(p.Suite(), commitments, masks)
+	mask, err := cosi.NewMask(p.Suite(), p.List, p.TreeNode().PublicAggregateSubTree)
 	if err != nil {
 		return err
 	}
-	err = aggCommitment.Mask.SetMask(aggMask)
+	masks = append(masks, mask.Mask())
+
+	//aggregate commitments and masks
+	var aggCommitment Commitment
+	aggCommitment.CosiCommitment, aggCommitment.Mask, err =
+		cosi.AggregateCommitments(p.Suite(), commitments, masks)
 	if err != nil {
 		return err
 	}
