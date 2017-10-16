@@ -32,9 +32,6 @@ type StructAnnouncement struct {
 type Commitment struct {
 	CosiCommitment abstract.Point
 	Mask       []byte
-
-	//TODO: see if should use something else instead, as error doesn't have a constructor to be used by the decoder at the node reception
-	Exception      error //if the node doesn't want to sign
 }
 
 // StructCommitment just contains Commitment and the data necessary to identify and

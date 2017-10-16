@@ -42,11 +42,8 @@ func TestCosiTwoNodes(t *testing.T) {
 	protocol := pi.(*protocol.Cosi)
 	timeout := network.WaitRetry * time.Duration(network.MaxRetryConnect*nbrNodes*2) * time.Millisecond
 	select {
-	case finalAggregate := <-protocol.AggregateCommitment:
-		log.Lvl2("Instance 1 is done")
-		if finalAggregate.Exception != nil {
-			t.Fatal("Error in aggregate:", finalAggregate.Exception)
-		}
+	case finalAggregate := <-protocol.AggregateResponse:
+		log.Lvl2("Instance 1 is done", finalAggregate.CosiReponse.String())
 		//TODO: verify aggregate
 	case <-time.After(timeout):
 		t.Fatal("Didn't finish in time")

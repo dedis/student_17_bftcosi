@@ -39,7 +39,9 @@ type Cosi struct {
 	MinShardSize        int // can be one more
 	Seed                int
 	Proposal            []byte
-	AggregateCommitment chan Commitment
+	scalar				abstract.Scalar
+	Challenge			abstract.Scalar
+	AggregateResponse chan Response
 }
 
 // NewProtocol initialises the structure for use in one round
@@ -61,10 +63,10 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 		MinShardSize:        n.Tree().Size()-1 / nShards,
 		Seed:                13213, //TODO: see how generate
 		Proposal:            make([]byte, 0),
-		AggregateCommitment: make(chan Commitment),
+		AggregateResponse:	make(chan Response),
 	} //TODO: see if should add TreeNodeIndex
 
-	for _, handler := range []interface{}{c.HandleAnnouncement, c.HandleCommitment} {
+	for _, handler := range []interface{}{c.HandleAnnouncement, c.HandleCommitment, c.HandleChallenge, c.HandleResponse} {
 		err := c.RegisterHandler(handler)
 		if err != nil {
 			return nil, errors.New("couldn't register handler: " + err.Error())
@@ -94,10 +96,10 @@ func (p *Cosi) HandleAnnouncement(msg StructAnnouncement) error {
 	return nil
 }
 
-// HandleReply is the message going up the tree and holding a counter
-// to verify the number of nodes.
+//TODO: handle timeout in the mask
+
+// HandleCommitment is the message going up the tree
 func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
-	defer p.Done() //TODO: move this instruction to final state once implemented
 	log.Lvl3(p.ServerIdentity().Address, ": received commitment to handle")
 
 	//extract lists of commitments and masks
@@ -109,8 +111,8 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 	}
 
 	//generate personal commitment
-	//TODO: grab first argument for reuse in response
-	_, commitment := cosi.Commit(p.Suite(), nil) //TODO: check if should use a given stream instead of random one
+	var commitment abstract.Point
+	p.scalar, commitment = cosi.Commit(p.Suite(), nil) //TODO: check if should use a given stream instead of random one
 	commitments = append(commitments, commitment)
 
 	//generate personal mask
@@ -130,11 +132,73 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 
 	log.Lvl3(p.ServerIdentity().Address, "is done aggregating commitments with total of",
 		len(commitments), "commitments")
+
+
 	if !p.IsRoot() {
 		log.Lvl3(p.ServerIdentity().Address, ": Sending to parent")
 		return p.SendToParent(&aggCommitment)
 	}
+
+	//if root, generate challenge
+	log.Lvl3("Root-node is done aggregating commitments")
+	challenge, err := cosi.Challenge(p.Suite(), aggCommitment.CosiCommitment,
+		p.Root().PublicAggregateSubTree, p.Proposal)
+	if err != nil {
+		return err
+	}
+	return p.HandleChallenge(StructChallenge{p.TreeNode(), Challenge{challenge}})
+}
+
+// HandleChallenge propagates the cosi challenge to all nodes.
+func (p *Cosi) HandleChallenge(msg StructChallenge) error {
+	p.Challenge = msg.CosiChallenge
+	if !p.IsLeaf() {
+		// If we have children, send the same message to all of them
+		log.Lvl3(p.ServerIdentity().Address, "is sending challenge to children(s)")
+		p.SendToChildren(&msg.Challenge)
+	} else {
+		// If we're the leaf, start to reply
+		log.Lvl3(p.ServerIdentity().Address, "begins response")
+		p.HandleResponse([]StructResponse{})
+	}
+	return nil
+}
+
+// HandleResponse returns the aggregated response of all children and the node up the tree
+func (p *Cosi) HandleResponse(structResponse []StructResponse) error {
+	defer p.Done()
+	log.Lvl3(p.ServerIdentity().Address, ": received Response to handle")
+
+	//extract lists of responses
+	var responses []abstract.Scalar
+	for _, c := range structResponse {
+		responses = append(responses, c.CosiReponse)
+	}
+
+	//generate personal response
+	response, err := cosi.Response(p.Suite(), p.TreeNodeInstance.Private(), p.scalar, p.Challenge)
+	if err != nil {
+		return err
+	}
+	responses = append(responses, response)
+
+	//aggregate responses
+	var aggResponse Response
+	aggResponse.CosiReponse, err = cosi.AggregateResponses(p.Suite(), responses)
+	if err != nil {
+		return err
+	}
+
+	log.Lvl3(p.ServerIdentity().Address, "is done aggregating responses with total of",
+		len(responses), "responses")
+
+	if !p.IsRoot() {
+		log.Lvl3(p.ServerIdentity().Address, ": Sending to parent")
+		return p.SendToParent(&aggResponse)
+	}
+
+	//if node is root
 	log.Lvl3("Root-node is done")
-	p.AggregateCommitment <- aggCommitment
+	p.AggregateResponse <- aggResponse
 	return nil
 }
