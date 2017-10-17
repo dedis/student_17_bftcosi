@@ -1,4 +1,4 @@
-package protocol_test
+package protocol_tests
 
 /*
 The test-file should at the very least run the protocol for a varying number
@@ -8,7 +8,6 @@ protocol, as in Test Driven Development.
 
 import (
 	"testing"
-	"time"
 
 	"github.com/dedis/student_17_bftcosi/protocol"
 	"gopkg.in/dedis/onet.v1"
@@ -18,37 +17,6 @@ import (
 
 func TestMain(m *testing.M) {
 	log.MainTest(m)
-}
-
-// Tests a 2, 5 and 13-node system. It is good practice to test different
-// sizes of trees to make sure your protocol is stable.
-func TestCosiTwoNodes(t *testing.T) {
-	local := onet.NewLocalTest()
-
-	nbrNodes := 2
-	servers := local.GenServers(nbrNodes)
-	roster := local.GenRosterFromHost(servers...)
-
-	err, tree := protocol.GenTree(roster, nbrNodes, 1)
-	if err != nil {
-		t.Fatal("Error in tree generation:", err)
-	}
-	log.Lvl3(tree.Dump())
-
-	pi, err := local.StartProtocol(protocol.Name, tree)
-	if err != nil {
-		t.Fatal("Couldn't start protocol:", err)
-	}
-	protocol := pi.(*protocol.Cosi)
-	timeout := network.WaitRetry * time.Duration(network.MaxRetryConnect*nbrNodes*2) * time.Millisecond
-	select {
-	case finalAggregate := <-protocol.AggregateResponse:
-		log.Lvl2("Instance 1 is done", finalAggregate.CosiReponse.String())
-		//TODO: verify aggregate
-	case <-time.After(timeout):
-		t.Fatal("Didn't finish in time")
-	}
-	local.CloseAll()
 }
 
 //tests the root of the tree
