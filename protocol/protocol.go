@@ -31,8 +31,9 @@ func init() {
 
 
 // Cosi just holds a message that is passed to all children. It
-// also defines a channel that will receive the final aggregate. Only the
+// also defines a channel that will receive the final signature. Only the
 // root-node will write to the channel.
+
 type Cosi struct {
 	*onet.TreeNodeInstance
 	List                []abstract.Point
@@ -41,7 +42,9 @@ type Cosi struct {
 	Proposal            []byte
 	scalar				abstract.Scalar
 	Challenge			abstract.Scalar
-	AggregateResponse chan Response
+	aggregateMask		*cosi.Mask
+	aggregateCommitment	abstract.Point
+	FinalSignature 		chan []byte
 }
 
 // NewProtocol initialises the structure for use in one round
@@ -61,10 +64,10 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 		TreeNodeInstance:    n,
 		List:                list,
 		MinShardSize:        n.Tree().Size()-1 / nShards,
-		Seed:                13213, //TODO: see how generate
+		Seed:                13213, //TODO: get it from protocol start
 		Proposal:            make([]byte, 0),
-		AggregateResponse:	make(chan Response),
-	} //TODO: see if should add TreeNodeIndex
+		FinalSignature:		make(chan []byte),
+	} //TODO r: see if should add TreeNodeIndex
 
 	for _, handler := range []interface{}{c.HandleAnnouncement, c.HandleCommitment, c.HandleChallenge, c.HandleResponse} {
 		err := c.RegisterHandler(handler)
@@ -112,23 +115,25 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 
 	//generate personal commitment
 	var commitment abstract.Point
-	p.scalar, commitment = cosi.Commit(p.Suite(), nil) //TODO: check if should use a given stream instead of random one
+	p.scalar, commitment = cosi.Commit(p.Suite(), nil) //TODO l: check if should use a given stream instead of random one
 	commitments = append(commitments, commitment)
 
 	//generate personal mask
-	mask, err := cosi.NewMask(p.Suite(), p.List, p.TreeNode().PublicAggregateSubTree)
+	var err error
+	p.aggregateMask, err = cosi.NewMask(p.Suite(), p.List, p.TreeNode().PublicAggregateSubTree)
 	if err != nil {
 		return err
 	}
-	masks = append(masks, mask.Mask())
+	masks = append(masks, p.aggregateMask.Mask())
 
 	//aggregate commitments and masks
-	var aggCommitment Commitment
-	aggCommitment.CosiCommitment, aggCommitment.Mask, err =
+	var aggMask []byte
+	p.aggregateCommitment, aggMask, err =
 		cosi.AggregateCommitments(p.Suite(), commitments, masks)
 	if err != nil {
 		return err
 	}
+	p.aggregateMask.SetMask(aggMask)
 
 	log.Lvl3(p.ServerIdentity().Address, "is done aggregating commitments with total of",
 		len(commitments), "commitments")
@@ -136,12 +141,12 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 
 	if !p.IsRoot() {
 		log.Lvl3(p.ServerIdentity().Address, ": Sending to parent")
-		return p.SendToParent(&aggCommitment)
+		return p.SendToParent(&Commitment{p.aggregateCommitment,p.aggregateMask.Mask()})
 	}
 
 	//if root, generate challenge
 	log.Lvl3("Root-node is done aggregating commitments")
-	challenge, err := cosi.Challenge(p.Suite(), aggCommitment.CosiCommitment,
+	challenge, err := cosi.Challenge(p.Suite(), p.aggregateCommitment,
 		p.Root().PublicAggregateSubTree, p.Proposal)
 	if err != nil {
 		return err
@@ -199,6 +204,11 @@ func (p *Cosi) HandleResponse(structResponse []StructResponse) error {
 
 	//if node is root
 	log.Lvl3("Root-node is done")
-	p.AggregateResponse <- aggResponse
+	var signature []byte
+	signature, err = cosi.Sign(p.Suite(), p.aggregateCommitment, aggResponse.CosiReponse, p.aggregateMask)
+	if err != nil {
+		return err
+	}
+	p.FinalSignature <- signature
 	return nil
 }

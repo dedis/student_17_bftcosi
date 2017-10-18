@@ -16,7 +16,7 @@ import (
 const Name = "Cosi"
 
 type Announcement struct {
-	 //TODO: add a list of nodes or nodes ID
+	 //TODO k: add a list of nodes or nodes ID
 	 ShardSize int
 	 Seed int
 	 Proposal []byte
