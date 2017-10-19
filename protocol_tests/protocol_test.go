@@ -47,7 +47,7 @@ func TestProtocol(t *testing.T) {
 		select {
 		case signature := <-protocol.FinalSignature:
 			log.Lvl2("Instance 1 is done")
-			proposal := make([]byte, 0)
+			proposal := []byte{0xFF}
 			err = cosi.Verify(protocol.Suite(), publics, proposal, signature, cosi.CompletePolicy{})
 			if err != nil {
 				t.Fatal("Didn't get a valid response aggregate:", err)

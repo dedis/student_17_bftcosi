@@ -37,14 +37,14 @@ func init() {
 type Cosi struct {
 	*onet.TreeNodeInstance
 	List                []abstract.Point
-	MinShardSize        int // can be one more
+	MinShardSize        int // can be one more //TODO k: check how to handle it
 	Seed                int
 	Proposal            []byte
-	scalar				abstract.Scalar
-	Challenge			abstract.Scalar
-	aggregateMask		*cosi.Mask
-	aggregateCommitment	abstract.Point
-	FinalSignature 		chan []byte
+	secret              abstract.Scalar
+	aggregateMask       *cosi.Mask
+	aggregateCommitment abstract.Point
+	Challenge           abstract.Scalar
+	FinalSignature      chan []byte
 }
 
 // NewProtocol initialises the structure for use in one round
@@ -64,10 +64,10 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 		TreeNodeInstance:    n,
 		List:                list,
 		MinShardSize:        n.Tree().Size()-1 / nShards,
-		Seed:                13213, //TODO: get it from protocol start
-		Proposal:            make([]byte, 0),
+		Seed:                13213, //TODO: get seed and proposal from protocol start
+		Proposal:            []byte{0xFF},
 		FinalSignature:		make(chan []byte),
-	} //TODO r: see if should add TreeNodeIndex
+	}
 
 	for _, handler := range []interface{}{c.HandleAnnouncement, c.HandleCommitment, c.HandleChallenge, c.HandleResponse} {
 		err := c.RegisterHandler(handler)
@@ -115,7 +115,7 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 
 	//generate personal commitment
 	var commitment abstract.Point
-	p.scalar, commitment = cosi.Commit(p.Suite(), nil) //TODO l: check if should use a given stream instead of random one
+	p.secret, commitment = cosi.Commit(p.Suite(), nil) //TODO l: check if should use a given stream instead of random one
 	commitments = append(commitments, commitment)
 
 	//generate personal mask
@@ -181,7 +181,7 @@ func (p *Cosi) HandleResponse(structResponse []StructResponse) error {
 	}
 
 	//generate personal response
-	response, err := cosi.Response(p.Suite(), p.TreeNodeInstance.Private(), p.scalar, p.Challenge)
+	response, err := cosi.Response(p.Suite(), p.TreeNodeInstance.Private(), p.secret, p.Challenge)
 	if err != nil {
 		return err
 	}
