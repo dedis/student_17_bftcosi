@@ -185,13 +185,13 @@ func TestGenTreeRosterErrors(t *testing.T) {
 			" with errors, but doesn't")
 	}
 
-	servers := local.GenServers(0)
+	servers := local.GenServers(2)
 	roster := local.GenRosterFromHost(servers...)
 
 	err, tree = protocol.GenTree(roster, 12, 3)
 	if err == nil {
 		t.Fatal("the GenTree function should throw an error" +
-			" with an empty roster, but doesn't")
+			" with a roster smaller than the number of nodes, but doesn't")
 	}
 	if tree != nil {
 		t.Fatal("the GenTree function should return a nil tree" +
@@ -205,7 +205,7 @@ func TestGenTreeRosterErrors(t *testing.T) {
 func TestGenTreeUsesWholeRoster(t *testing.T) {
 	local := onet.NewLocalTest()
 
-	servers := []int{1, 2, 5, 13, 20}
+	servers := []int{5, 13, 20}
 	nbrNodes := 5
 	for _, nbrServers := range servers {
 

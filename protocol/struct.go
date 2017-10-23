@@ -26,7 +26,7 @@ type Announcement struct {
 // StructAnnouncement just contains Announcement and the data necessary to identify and
 // process the message in the sda framework.
 type StructAnnouncement struct {
-	*onet.TreeNode
+	*onet.TreeNode //sender
 	Announcement
 }
 

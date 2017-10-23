@@ -115,7 +115,7 @@ func (p *Cosi) HandleCommitment(structCommitments []StructCommitment) error {
 
 	//generate personal commitment
 	var commitment abstract.Point
-	p.secret, commitment = cosi.Commit(p.Suite(), nil) //TODO l: check if should use a given stream instead of random one
+	p.secret, commitment = cosi.Commit(p.Suite(), nil)
 	commitments = append(commitments, commitment)
 
 	//generate personal mask
