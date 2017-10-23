@@ -15,11 +15,8 @@ import (
 // Name can be used from other packages to refer to this protocol.
 const Name = "Cosi"
 
-//TODO: create bootstrap phase
-//TODO: generate tree from list during bootstrap phase
 type Announcement struct {
 	 ShardSize int
-	 Seed int
 	 Proposal []byte
 }
 

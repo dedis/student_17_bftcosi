@@ -38,7 +38,6 @@ type Cosi struct {
 	*onet.TreeNodeInstance
 	List                []abstract.Point
 	MinShardSize        int // can be one more
-	Seed                int
 	Proposal            []byte
 	secret              abstract.Scalar
 	aggregateMask       *cosi.Mask
@@ -79,10 +78,9 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 // Start sends the Announcement-message to all children
 func (p *Cosi) Start() error {
 	log.Lvl3("Starting Cosi")
-	p.Seed = 13213
 	p.Proposal = []byte{0xFF}
 	return p.HandleAnnouncement(StructAnnouncement{p.TreeNode(),
-		Announcement{p.MinShardSize, p.Seed, p.Proposal}})
+		Announcement{p.MinShardSize, p.Proposal}})
 }
 
 // HandleAnnouncement announce the start of the protocol by the leader (tree root) to all nodes.
