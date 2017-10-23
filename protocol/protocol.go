@@ -37,7 +37,7 @@ func init() {
 type Cosi struct {
 	*onet.TreeNodeInstance
 	List                []abstract.Point
-	MinShardSize        int // can be one more //TODO k: check how to handle it
+	MinShardSize        int // can be one more
 	Seed                int
 	Proposal            []byte
 	secret              abstract.Scalar
@@ -64,8 +64,6 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 		TreeNodeInstance:    n,
 		List:                list,
 		MinShardSize:        n.Tree().Size()-1 / nShards,
-		Seed:                13213, //TODO: get seed and proposal from protocol start
-		Proposal:            []byte{0xFF},
 		FinalSignature:		make(chan []byte),
 	}
 
@@ -81,6 +79,8 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 // Start sends the Announcement-message to all children
 func (p *Cosi) Start() error {
 	log.Lvl3("Starting Cosi")
+	p.Seed = 13213
+	p.Proposal = []byte{0xFF}
 	return p.HandleAnnouncement(StructAnnouncement{p.TreeNode(),
 		Announcement{p.MinShardSize, p.Seed, p.Proposal}})
 }
