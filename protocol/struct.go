@@ -16,7 +16,6 @@ import (
 const Name = "Cosi"
 
 type Announcement struct {
-	 ShardSize int
 	 Proposal []byte
 }
 
