@@ -50,7 +50,7 @@ func TestProtocol(t *testing.T) {
 			timeout := network.WaitRetry * time.Duration(network.MaxRetryConnect*nbrNodes*2) * time.Millisecond
 			select {
 			case signature := <-protocol.FinalSignature:
-				log.Lvl2("Instance 1 is done")
+				log.Lvl2("Instance is done")
 				proposal := []byte{0xFF}
 				err = cosi.Verify(protocol.Suite(), publics, proposal, signature, cosi.CompletePolicy{})
 				if err != nil {
