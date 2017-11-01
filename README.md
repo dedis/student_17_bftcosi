@@ -12,6 +12,6 @@ The purpose of the project is to test scalability and robustness of this service
 Components
 
 ## References
-- A Secure, Scale-Out, Decentralized Ledger: https://eprint.iacr.org/2017/406.pdf part 4 A & B
-- CoSi paper: https://arxiv.org/abs/1503.08768
-- Byzcoin paper: https://arxiv.org/abs/1602.06997
+- OmniLedger: A Secure, Scale-Out, Decentralized Ledger via Sharding: https://eprint.iacr.org/2017/406.pdf part 4 A & B
+- (CoSi) Keeping Authorities "Honest or Bust" with Decentralized Witness Cosigning: https://arxiv.org/abs/1503.08768
+- (ByzCoin) Enhancing Bitcoin Security and Performance with Strong Consistency via Collective Signing: https://arxiv.org/abs/1602.06997
