@@ -12,8 +12,9 @@ import (
 	"gopkg.in/dedis/crypto.v0/abstract"
 )
 
+
 // Tests various trees configurations
-func TestProtocol(t *testing.T) {
+func TestProtocol(t *testing.T) { //TODO: update test to handle global protocol
 	//log.SetDebugVisible(3)
 
 	local := onet.NewLocalTest()
@@ -24,42 +25,44 @@ func TestProtocol(t *testing.T) {
 		for _, nbrShards := range shards {
 
 			servers := local.GenServers(nbrNodes)
-			roster := local.GenRosterFromHost(servers...)
 
 			//generate tree
-			err, tree := protocol.GenTree(roster, nbrNodes, nbrShards)
+			trees, err := protocol.GenTrees(servers, local.GenRosterFromHost, nbrNodes, nbrShards)
 			if err != nil {
 				t.Fatal("Error in tree generation:", err)
 			}
-			log.Lvl3(tree.Dump())
 
-			//get public keys
-			publics := make([]abstract.Point, 0)
-			for _, n := range tree.List() {
-				publics = append(publics, n.ServerIdentity.Public)
-			}
+			for _, tree := range trees {
+				log.Lvl3(tree.Dump())
 
-			//start protocol
-			pi, err := local.StartProtocol(protocol.Name, tree)
-			if err != nil {
-				t.Fatal("Couldn't start protocol:", err)
-			}
-
-			//get response
-			protocol := pi.(*protocol.Cosi)
-			timeout := network.WaitRetry * time.Duration(network.MaxRetryConnect*nbrNodes*2) * time.Millisecond
-			select {
-			case signature := <-protocol.FinalSignature:
-				log.Lvl2("Instance is done")
-				proposal := []byte{0xFF}
-				err = cosi.Verify(protocol.Suite(), publics, proposal, signature, cosi.CompletePolicy{})
-				if err != nil {
-					t.Fatal("Didn't get a valid response aggregate:", err)
-				} else {
-					log.Lvl2("Signature correctly verified!")
+				//get public keys
+				publics := make([]abstract.Point, 0)
+				for _, n := range tree.List() {
+					publics = append(publics, n.ServerIdentity.Public)
 				}
-			case <-time.After(timeout):
-				t.Fatal("Didn't finish in time")
+
+				//start protocol
+				pi, err := local.StartProtocol(protocol.Name, tree)
+				if err != nil {
+					t.Fatal("Couldn't start protocol:", err)
+				}
+
+				//get response
+				protocol := pi.(*protocol.Cosi)
+				timeout := network.WaitRetry * time.Duration(network.MaxRetryConnect*nbrNodes*2) * time.Millisecond
+				select {
+				case signature := <-protocol.FinalSignature:
+					log.Lvl2("Instance is done")
+					proposal := []byte{0xFF}
+					err = cosi.Verify(protocol.Suite(), publics, proposal, signature, cosi.CompletePolicy{})
+					if err != nil {
+						t.Fatal("Didn't get a valid response aggregate:", err)
+					} else {
+						log.Lvl2("Signature correctly verified!")
+					}
+				case <-time.After(timeout):
+					t.Fatal("Didn't finish in time")
+				}
 			}
 			local.CloseAll()
 		}

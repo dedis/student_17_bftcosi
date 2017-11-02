@@ -9,63 +9,73 @@ import (
 // GenTree will create a tree of n servers with a localRouter, and returns the
 // list of servers and the associated roster / tree.
 // NOTE: register being not implementable with the current API could hurt the scalability tests
-func GenTree(roster *onet.Roster, nNodes, nShards int) (error, *onet.Tree) {
+func GenTrees(servers []*onet.Server, rosterGenerator func(...*onet.Server) *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) {
 
 	//parameter verification
-	if roster == nil {
-		return errors.New("the roster is nil"), nil
+	if servers == nil {
+		return nil, errors.New("the roster is nil")
 	}
 	if nNodes < 1 {
-		return fmt.Errorf("the number of nodes in a tree " +
-			"cannot be less than one, but is %d", nNodes), nil
+		return nil, fmt.Errorf("the number of nodes in the global tree " +
+			"cannot be less than one, but is %d", nNodes)
 	}
-	if len(roster.List) < nNodes {
-		return fmt.Errorf("the tree should have %d nodes, but there is only %d servers in the roster",
-			nNodes, len(roster.List)), nil
+	if len(servers) < nNodes {
+		return nil, fmt.Errorf("the global tree should have %d nodes, " +
+			"but there is only %d servers", nNodes, len(servers))
 	}
-	if nShards < 1 {
-		return fmt.Errorf("the number of shards in a tree " +
-			"cannot be less than one, but is %d", nShards), nil
-	}
-
-	if nNodes <= nShards {
-		nShards = nNodes -1
+	if nSubtrees < 1 {
+		return nil, fmt.Errorf("the number of shards in the global tree " +
+			"cannot be less than one, but is %d", nSubtrees)
 	}
 
-	//generate first level of the tree
-	nTopLevelNodes := nShards +1
-	rootNode := onet.NewTreeNode(0, roster.List[0])
-	for i := 1 ; i< nTopLevelNodes; i++ {
-		node := onet.NewTreeNode(i, roster.List[i])
-		node.Parent = rootNode
-		rootNode.Children = append(rootNode.Children, node)
+	if nNodes <= nSubtrees {
+		nSubtrees = nNodes -1
+	}
+
+	trees := make([]*onet.Tree, nSubtrees)
+
+	if nSubtrees == 0 {
+		roster := rosterGenerator(servers[0])
+		rootNode := onet.NewTreeNode(0, roster.List[0])
+		trees = append(trees, onet.NewTree(roster, rootNode))
+		return trees, nil
 	}
 
 
 	//generate each shard
-	if nTopLevelNodes != nNodes {
+	nodesPerShard := (nNodes - 1) / nSubtrees
+	surplusNodes := (nNodes - 1) % nSubtrees
 
-		nodesPerShard := (nNodes - 1) / nShards
-		surplusNodes := (nNodes - 1) % nShards
+	start := 1
+	for i := 0 ; i< nSubtrees; i++ {
 
-		start := nTopLevelNodes
-		for i, n := range rootNode.Children {
-
-			end := start + (nodesPerShard -1)
-			if i< surplusNodes { //to handle surplus nodes
-				end++
-			}
-
-			for j := start ; j < end ; j++ {
-				node := onet.NewTreeNode(j, roster.List[j])
-				node.Parent = n
-				n.Children = append(n.Children, node)
-			}
-			start = end
+		end := start + nodesPerShard
+		if i < surplusNodes { //to handle surplus nodes
+			end++
 		}
+
+		//generate tree roster
+		treeServers := []*onet.Server{servers[0]}
+		treeServers = append(treeServers, servers[start:end]...)
+		treeRoster := rosterGenerator(treeServers...)
+
+		//generate leader and subleader
+		rootNode := onet.NewTreeNode(0, treeRoster.List[0])
+		subleader := onet.NewTreeNode(1, treeRoster.List[1])
+		subleader.Parent = rootNode
+		rootNode.Children = []*onet.TreeNode{subleader}
+
+		//generate leaves
+		for j := 2 ; j < end-start+1 ; j++ {
+			node := onet.NewTreeNode(j, treeRoster.List[j])
+			node.Parent = subleader
+			subleader.Children = append(subleader.Children, node)
+		}
+
+		start = end
+		trees[i] = onet.NewTree(treeRoster, rootNode)
 	}
 
-	tree := onet.NewTree(roster, rootNode)
 
 	//l.Trees[tree.ID] = tree
 	//if registerOLD {
@@ -73,5 +83,5 @@ func GenTree(roster *onet.Roster, nNodes, nShards int) (error, *onet.Tree) {
 	//	servers[0].overlay.RegisterTree(tree)
 	//}
 
-	return nil, tree
+	return trees, nil
 }
