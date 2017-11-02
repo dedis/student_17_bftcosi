@@ -2,7 +2,6 @@ package protocol_tests
 
 import (
 	"testing"
-	"time"
 
 	"github.com/dedis/student_17_bftcosi/protocol"
 	"gopkg.in/dedis/onet.v1"
@@ -42,28 +41,21 @@ func TestProtocol(t *testing.T) {
 			}
 
 			//start protocol
-			channelsSignature, err := protocol.SuperProtocol(local.StartProtocol, trees)
+			signatures, err := protocol.StartProtocol(local.StartProtocol, trees)
 			if err != nil {
 				t.Fatal("Error in protocol:", err)
 			}
 
 			//get responses
-			for i, channelSignature := range channelsSignature {
-				timeout := network.WaitRetry * time.Duration(network.MaxRetryConnect*nbrNodes*2) * time.Millisecond
-				select {
-				case signature := <-channelSignature:
-					log.Lvl2("Instance is done")
-					proposal := []byte{0xFF}
-					err = cosi.Verify(network.Suite, publics[i], proposal, signature, cosi.CompletePolicy{})
-					if err != nil {
-						t.Fatal("Didn't get a valid response aggregate:", err)
-					} else {
-						log.Lvl2("Signature correctly verified!")
-					}
-				case <-time.After(timeout):
-					t.Fatal("Didn't finish in time")
+			log.Lvl2("Instance is done")
+			for i, signature := range signatures {
+				proposal := []byte{0xFF}
+				err = cosi.Verify(network.Suite, publics[i], proposal, signature, cosi.CompletePolicy{})
+				if err != nil {
+					t.Fatal("Didn't get a valid response aggregate:", err)
 				}
 			}
+			log.Lvl2("Signature correctly verified!")
 			local.CloseAll()
 		}
 	}

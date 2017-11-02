@@ -10,10 +10,13 @@ so that it can find out who sent the message.
 import (
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/onet.v1/network"
+	"time"
 )
 
 // Name can be used from other packages to refer to this protocol.
 const Name = "Cosi"
+const Timeout = network.WaitRetry * time.Duration(network.MaxRetryConnect*2) * time.Millisecond
 
 type Announcement struct {
 	 Proposal []byte
