@@ -1,11 +1,12 @@
 package protocol
 
 import (
-	"gopkg.in/dedis/onet.v1/log"
+	"time"
+
 	"github.com/dedis/student_17_bftcosi/cosi"
 	"gopkg.in/dedis/crypto.v0/abstract"
-	"time"
 	"gopkg.in/dedis/onet.v1"
+	"gopkg.in/dedis/onet.v1/log"
 )
 
 // Cosi holds the different channels used to receive the different protocol messages.
@@ -13,14 +14,14 @@ import (
 // root-node will write to this channel.
 type Cosi struct {
 	*onet.TreeNodeInstance
-	List                	[]abstract.Point
-	MinShardSize        	int // can be one more //TODO: see if still useful
-	subleaderNotResponding	chan bool
-	FinalSignature      	chan []byte
-	ChannelAnnouncement		chan StructAnnouncement
-	ChannelCommitment  		chan []StructCommitment
-	ChannelChallenge		chan StructChallenge
-	ChannelResponse  		chan []StructResponse
+	List                   []abstract.Point
+	MinSubtreeSize         int // can be one more //TODO: see if still useful
+	subleaderNotResponding chan bool
+	FinalSignature         chan []byte
+	ChannelAnnouncement    chan StructAnnouncement
+	ChannelCommitment      chan []StructCommitment
+	ChannelChallenge       chan StructChallenge
+	ChannelResponse        chan []StructResponse
 }
 
 // Start is done only by root and sends the announcement message to all children

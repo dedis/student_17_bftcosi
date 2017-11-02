@@ -18,15 +18,15 @@ func TestProtocol(t *testing.T) {
 
 	local := onet.NewLocalTest()
 	nodes := []int{2, 5, 13, 24}
-	shards := []int{1, 2, 5}
+	subtrees := []int{1, 2, 5}
 
-	for _, nbrNodes := range nodes {
-		for _, nbrShards := range shards {
+	for _, nNodes := range nodes {
+		for _, nSubtrees := range subtrees {
 
-			servers := local.GenServers(nbrNodes)
+			servers := local.GenServers(nNodes)
 
-			//generate trees
-			trees, err := protocol.GenTrees(servers, local.GenRosterFromHost, nbrNodes, nbrShards)
+			//generate trees //TODO: remove once aggregated signature is implemented
+			trees, err := protocol.GenTrees(servers, local.GenRosterFromHost, nNodes, nSubtrees)
 			if err != nil {
 				t.Fatal("Error in tree generation:", err)
 			}
@@ -41,7 +41,7 @@ func TestProtocol(t *testing.T) {
 			}
 
 			//start protocol
-			signatures, err := protocol.StartProtocol(local.StartProtocol, trees)
+			signatures, err := protocol.StartProtocol(servers, nNodes, nSubtrees, local.GenRosterFromHost, local.StartProtocol)
 			if err != nil {
 				t.Fatal("Error in protocol:", err)
 			}

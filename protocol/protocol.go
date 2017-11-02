@@ -1,11 +1,12 @@
 package protocol
 
 import (
-	"gopkg.in/dedis/onet.v1"
-	"time"
-	"fmt"
-	"gopkg.in/dedis/crypto.v0/abstract"
 	"errors"
+	"fmt"
+	"time"
+
+	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
 )
 
@@ -18,14 +19,21 @@ func init() {
 	onet.GlobalProtocolRegister(Name, NewProtocol)
 }
 
+//TODO: see if necessary
 type StartProtocolFunction func(name string, t *onet.Tree) (onet.ProtocolInstance, error)
+type RosterGenerator func(...*onet.Server) *onet.Roster
 
-func StartProtocol(startProtocol StartProtocolFunction, trees []*onet.Tree) ([][]byte, error){
+func StartProtocol(servers []*onet.Server, nNodes, nSubtrees int, rosterGenerator RosterGenerator, startProtocol StartProtocolFunction) ([][]byte, error){
 
-	signatures := make([][]byte, len(trees))
-	cosiProtocols := make([]*Cosi, len(trees))
+	//generate trees
+	trees, err := GenTrees(servers, rosterGenerator, nNodes, nSubtrees)
+	if err != nil {
+		return nil, fmt.Errorf("Error in tree generation:", err)
+	}
+
 
 	//start all protocols
+	cosiProtocols := make([]*Cosi, len(trees))
 	for i, tree := range trees {
 		//start protocol
 		pi, err := startProtocol(Name, tree)
@@ -37,7 +45,8 @@ func StartProtocol(startProtocol StartProtocolFunction, trees []*onet.Tree) ([][
 		cosiProtocols[i] = pi.(*Cosi)
 	}
 
-	//check all protocols
+	//get all signatures
+	signatures := make([][]byte, len(trees))
 	timeout := 4*Timeout
 	for i, cosiProtocol := range cosiProtocols {
 		protocol := cosiProtocol
@@ -61,14 +70,13 @@ func StartProtocol(startProtocol StartProtocolFunction, trees []*onet.Tree) ([][
 	return signatures, nil
 }
 
-/*	The `NewProtocol` method is used to define the protocol and to register
-	the channels where the messages will be received.
-*/
+// The `NewProtocol` method is used to define the protocol and to register
+// the channels where the messages will be received.
 func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 
-	nShards := len(n.Root().Children)
-	if nShards < 1 { //to avoid divBy0 with one node tree
-		nShards = 1
+	nSubtrees := len(n.Root().Children)
+	if nSubtrees < 1 { //to avoid divBy0 with one node tree
+		nSubtrees = 1
 	}
 
 	var list []abstract.Point
@@ -77,11 +85,11 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	}
 
 	c := &Cosi{
-		TreeNodeInstance:    	n,
-		List:               list,
-		MinShardSize:        	n.Tree().Size()-1 / nShards,
+		TreeNodeInstance:       n,
+		List:                   list,
+		MinSubtreeSize:         n.Tree().Size()-1 /nSubtrees +1,
 		subleaderNotResponding: make(chan bool),
-		FinalSignature:			make(chan []byte),
+		FinalSignature:         make(chan []byte),
 	}
 
 	for _, channel := range []interface{}{&c.ChannelAnnouncement, &c.ChannelCommitment, &c.ChannelChallenge, &c.ChannelResponse} {
