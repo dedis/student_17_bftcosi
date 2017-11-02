@@ -45,6 +45,25 @@ type Cosi struct {
 	ChannelResponse  	chan []StructResponse
 }
 
+type StartProtocol func(name string, t *onet.Tree) (onet.ProtocolInstance, error)
+
+func SuperProtocol(startProtocol StartProtocol, trees []*onet.Tree) ([]chan []byte, error){
+
+	channels := make([]chan []byte, 0)
+	for _, tree := range trees {
+		pi, err := startProtocol(Name, tree)
+		if err != nil {
+			return nil, err
+		}
+
+		//get response
+		cosiProtocol := pi.(*Cosi)
+		channels = append(channels, cosiProtocol.FinalSignature)
+	}
+
+	return channels, nil
+}
+
 // NewProtocol initialises the structure for use in one round
 func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 

@@ -14,7 +14,7 @@ import (
 
 
 // Tests various trees configurations
-func TestProtocol(t *testing.T) { //TODO: update test to handle global protocol
+func TestProtocol(t *testing.T) {
 	//log.SetDebugVisible(3)
 
 	local := onet.NewLocalTest()
@@ -26,35 +26,35 @@ func TestProtocol(t *testing.T) { //TODO: update test to handle global protocol
 
 			servers := local.GenServers(nbrNodes)
 
-			//generate tree
+			//generate trees
 			trees, err := protocol.GenTrees(servers, local.GenRosterFromHost, nbrNodes, nbrShards)
 			if err != nil {
 				t.Fatal("Error in tree generation:", err)
 			}
 
-			for _, tree := range trees {
-				log.Lvl3(tree.Dump())
-
-				//get public keys
-				publics := make([]abstract.Point, 0)
-				for _, n := range tree.List() {
-					publics = append(publics, n.ServerIdentity.Public)
+			//get public keys
+			publics := make([][]abstract.Point, len(trees))
+			for i, tree := range trees {
+				publics[i] = make([]abstract.Point, len(tree.List()))
+				for j, n := range tree.List() {
+					publics[i][j] = n.ServerIdentity.Public
 				}
+			}
 
-				//start protocol
-				pi, err := local.StartProtocol(protocol.Name, tree)
-				if err != nil {
-					t.Fatal("Couldn't start protocol:", err)
-				}
+			//start protocol
+			channelsSignature, err := protocol.SuperProtocol(local.StartProtocol, trees)
+			if err != nil {
+				t.Fatal("Error in protocol:", err)
+			}
 
-				//get response
-				protocol := pi.(*protocol.Cosi)
+			//get responses
+			for i, channelSignature := range channelsSignature {
 				timeout := network.WaitRetry * time.Duration(network.MaxRetryConnect*nbrNodes*2) * time.Millisecond
 				select {
-				case signature := <-protocol.FinalSignature:
+				case signature := <-channelSignature:
 					log.Lvl2("Instance is done")
 					proposal := []byte{0xFF}
-					err = cosi.Verify(protocol.Suite(), publics, proposal, signature, cosi.CompletePolicy{})
+					err = cosi.Verify(network.Suite, publics[i], proposal, signature, cosi.CompletePolicy{})
 					if err != nil {
 						t.Fatal("Didn't get a valid response aggregate:", err)
 					} else {
