@@ -24,9 +24,10 @@ func TestProtocol(t *testing.T) {
 		for _, nSubtrees := range subtrees {
 
 			servers := local.GenServers(nNodes)
+			roster := local.GenRosterFromHost(servers...)
 
 			//generate trees //TODO: remove once aggregated signature is implemented
-			trees, err := protocol.GenTrees(servers, local.GenRosterFromHost, nNodes, nSubtrees)
+			trees, err := protocol.GenTrees(roster, nNodes, nSubtrees)
 			if err != nil {
 				t.Fatal("Error in tree generation:", err)
 			}
@@ -41,7 +42,7 @@ func TestProtocol(t *testing.T) {
 			}
 
 			//start protocol
-			signatures, err := protocol.StartProtocol(servers, nNodes, nSubtrees, local.GenRosterFromHost, local.StartProtocol)
+			signatures, err := protocol.StartProtocol(roster, nNodes, nSubtrees, local.StartProtocol)
 			if err != nil {
 				t.Fatal("Error in protocol:", err)
 			}

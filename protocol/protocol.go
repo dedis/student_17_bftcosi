@@ -15,18 +15,17 @@ func init() {
 	network.RegisterMessage(Commitment{})
 	network.RegisterMessage(Challenge{})
 	network.RegisterMessage(Response{})
+	//TODO: define a stop message
 
 	onet.GlobalProtocolRegister(Name, NewProtocol)
 }
 
-//TODO: see if necessary
 type StartProtocolFunction func(name string, t *onet.Tree) (onet.ProtocolInstance, error)
-type RosterGenerator func(...*onet.Server) *onet.Roster
 
-func StartProtocol(servers []*onet.Server, nNodes, nSubtrees int, rosterGenerator RosterGenerator, startProtocol StartProtocolFunction) ([][]byte, error){
+func StartProtocol(roster *onet.Roster, nNodes, nSubtrees int, startProtocol StartProtocolFunction) ([][]byte, error){
 
 	//generate trees
-	trees, err := GenTrees(servers, rosterGenerator, nNodes, nSubtrees)
+	trees, err := GenTrees(roster, nNodes, nSubtrees)
 	if err != nil {
 		return nil, fmt.Errorf("Error in tree generation:", err)
 	}

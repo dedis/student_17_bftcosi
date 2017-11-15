@@ -19,7 +19,7 @@ func TestMain(m *testing.M) {
 	log.MainTest(m)
 }
 
-//tests the root of the tree
+//tests the root of the trees
 func TestGenTreeRoot(t *testing.T) {
 	local := onet.NewLocalTest()
 
@@ -28,8 +28,9 @@ func TestGenTreeRoot(t *testing.T) {
 	for _, nbrNodes := range nodes {
 		for _, nSubtrees := range subtrees {
 			servers := local.GenServers(nbrNodes)
+			roster := local.GenRosterFromHost(servers...)
 
-			trees, err := protocol.GenTrees(servers, local.GenRosterFromHost, nbrNodes, nSubtrees)
+			trees, err := protocol.GenTrees(roster, nbrNodes, nSubtrees)
 			if err != nil {
 				t.Fatal("Error in tree generation:", err)
 			}
@@ -57,8 +58,9 @@ func TestGenTreeCount(t *testing.T) {
 	for _, nNodes := range nodes {
 		for _, nSubtrees := range subtrees {
 			servers := local.GenServers(nNodes)
+			roster := local.GenRosterFromHost(servers...)
 
-			trees, err := protocol.GenTrees(servers, local.GenRosterFromHost, nNodes, nSubtrees)
+			trees, err := protocol.GenTrees(roster, nNodes, nSubtrees)
 			if err != nil {
 				t.Fatal("Error in tree generation:", err)
 			}
@@ -96,8 +98,9 @@ func TestGenTreeSubtrees(t *testing.T) {
 			}
 
 			servers := local.GenServers(nNodes)
+			roster := local.GenRosterFromHost(servers...)
 
-			trees, err := protocol.GenTrees(servers, local.GenRosterFromHost, nNodes, nSubtrees)
+			trees, err := protocol.GenTrees(roster, nNodes, nSubtrees)
 			if err != nil {
 				t.Fatal("Error in tree generation:", err)
 			}
@@ -120,8 +123,9 @@ func TestGenTreeComplete(t *testing.T) {
 		for _, nSubtrees := range subtrees {
 
 			servers := local.GenServers(nNodes)
+			roster := local.GenRosterFromHost(servers...)
 
-			trees, err := protocol.GenTrees(servers, local.GenRosterFromHost, nNodes, nSubtrees)
+			trees, err := protocol.GenTrees(roster, nNodes, nSubtrees)
 			if err != nil {
 				t.Fatal("Error in tree generation:", err)
 			}
@@ -172,8 +176,9 @@ func TestGenTreeErrors(t *testing.T) {
 	for _, negativeNumber := range negativeNumbers {
 
 		servers := local.GenServers(positiveNumber)
+		roster := local.GenRosterFromHost(servers...)
 
-		trees, err := protocol.GenTrees(servers, local.GenRosterFromHost, negativeNumber, positiveNumber)
+		trees, err := protocol.GenTrees(roster, negativeNumber, positiveNumber)
 		if err == nil {
 			t.Fatal("the GenTree function should throw an error" +
 				" with negative number of nodes, but doesn't")
@@ -183,7 +188,7 @@ func TestGenTreeErrors(t *testing.T) {
 			" with errors, but doesn't")
 		}
 
-		trees, err = protocol.GenTrees(servers, local.GenRosterFromHost, positiveNumber, negativeNumber)
+		trees, err = protocol.GenTrees(roster, positiveNumber, negativeNumber)
 		if err == nil {
 			t.Fatal("the GenTree function should throw an error" +
 				" with negative number of subtrees, but doesn't")
@@ -201,10 +206,10 @@ func TestGenTreeErrors(t *testing.T) {
 func TestGenTreeRosterErrors(t *testing.T) {
 	local := onet.NewLocalTest()
 
-	trees, err := protocol.GenTrees(nil, local.GenRosterFromHost, 12, 3)
+	trees, err := protocol.GenTrees(nil, 12, 3)
 	if err == nil {
 		t.Fatal("the GenTree function should throw an error" +
-			" with an nil list of servers, but doesn't")
+			" with an nil roster, but doesn't")
 	}
 	if trees != nil {
 		t.Fatal("the GenTree function should return a nil tree" +
@@ -212,11 +217,12 @@ func TestGenTreeRosterErrors(t *testing.T) {
 	}
 
 	servers := local.GenServers(2)
+	roster := local.GenRosterFromHost(servers...)
 
-	trees, err = protocol.GenTrees(servers, local.GenRosterFromHost, 12, 3)
+	trees, err = protocol.GenTrees(roster, 12, 3)
 	if err == nil {
 		t.Fatal("the GenTree function should throw an error" +
-			" with a list of servers smaller than the number of nodes, but doesn't")
+			" with a roster containing less servers than the number of nodes, but doesn't")
 	}
 	if trees != nil {
 		t.Fatal("the GenTree function should return a nil tree" +
@@ -235,8 +241,9 @@ func TestGenTreeUsesWholeRoster(t *testing.T) {
 	for _, nServers := range servers {
 
 		servers := local.GenServers(nServers)
+		roster := local.GenRosterFromHost(servers...)
 
-		trees, err := protocol.GenTrees(servers, local.GenRosterFromHost, nNodes, 4)
+		trees, err := protocol.GenTrees(roster, nNodes, 4)
 		if err != nil {
 			t.Fatal("Error in tree generation:", err)
 		}

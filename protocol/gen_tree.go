@@ -4,24 +4,25 @@ import (
 	"gopkg.in/dedis/onet.v1"
 	"errors"
 	"fmt"
+	"gopkg.in/dedis/onet.v1/network"
 )
 
 // GenTree will create a tree of n servers with a localRouter, and returns the
 // list of servers and the associated roster / tree.
 // NOTE: register being not implementable with the current API could hurt the scalability tests
-func GenTrees(servers []*onet.Server, rosterGenerator func(...*onet.Server) *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) {
+func GenTrees(roster *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) {
 
 	//parameter verification
-	if servers == nil {
+	if roster == nil {
 		return nil, errors.New("the roster is nil")
 	}
 	if nNodes < 1 {
 		return nil, fmt.Errorf("the number of nodes in the global tree " +
 			"cannot be less than one, but is %d", nNodes)
 	}
-	if len(servers) < nNodes {
+	if len(roster.List) < nNodes {
 		return nil, fmt.Errorf("the global tree should have %d nodes, " +
-			"but there is only %d servers", nNodes, len(servers))
+			"but there is only %d servers in the roster", nNodes, len(roster.List))
 	}
 	if nSubtrees < 1 {
 		return nil, fmt.Errorf("the number of shards in the global tree " +
@@ -35,9 +36,9 @@ func GenTrees(servers []*onet.Server, rosterGenerator func(...*onet.Server) *one
 	trees := make([]*onet.Tree, nSubtrees)
 
 	if nSubtrees == 0 {
-		roster := rosterGenerator(servers[0])
-		rootNode := onet.NewTreeNode(0, roster.List[0])
-		trees = append(trees, onet.NewTree(roster, rootNode))
+		localRoster := onet.NewRoster(roster.List[0:1])
+		rootNode := onet.NewTreeNode(0, localRoster.List[0])
+		trees = append(trees, onet.NewTree(localRoster, rootNode))
 		return trees, nil
 	}
 
@@ -55,9 +56,9 @@ func GenTrees(servers []*onet.Server, rosterGenerator func(...*onet.Server) *one
 		}
 
 		//generate tree roster
-		treeServers := []*onet.Server{servers[0]}
-		treeServers = append(treeServers, servers[start:end]...)
-		treeRoster := rosterGenerator(treeServers...)
+		servers := []*network.ServerIdentity{roster.List[0]}
+		servers = append(servers, roster.List[start:end]...)
+		treeRoster := onet.NewRoster(servers)
 
 		//generate leader and subleader
 		rootNode := onet.NewTreeNode(0, treeRoster.List[0])
