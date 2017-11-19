@@ -102,6 +102,15 @@ func (p *CosiRootNode) Dispatch() error {
 			select {
 			case _ = <-protocol.subleaderNotResponding:
 				log.Lvl3("subleader %d failed, restarting it", i)
+
+				//generate new tree
+				subleaderID := trees[i].Root.Children[0].RosterIndex
+				newSubleaderID := (subleaderID +1) % len(trees[i].Roster.List)
+				trees[i], err = genSubtree(trees[i].Roster, newSubleaderID)
+				if err != nil {
+					return err
+				}
+
 				//restart protocol
 				pi, err := p.CreateProtocol(ProtocolName, trees[i])
 				if err != nil {

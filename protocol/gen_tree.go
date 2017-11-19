@@ -60,21 +60,13 @@ func GenTrees(roster *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) 
 		servers = append(servers, roster.List[start:end]...)
 		treeRoster := onet.NewRoster(servers)
 
-		//generate leader and subleader
-		rootNode := onet.NewTreeNode(0, treeRoster.List[0])
-		subleader := onet.NewTreeNode(1, treeRoster.List[1])
-		subleader.Parent = rootNode
-		rootNode.Children = []*onet.TreeNode{subleader}
-
-		//generate leaves
-		for j := 2 ; j < end-start+1 ; j++ {
-			node := onet.NewTreeNode(j, treeRoster.List[j])
-			node.Parent = subleader
-			subleader.Children = append(subleader.Children, node)
+		var err error
+		trees[i], err = genSubtree(treeRoster, 1)
+		if err != nil {
+			return nil, err
 		}
 
 		start = end
-		trees[i] = onet.NewTree(treeRoster, rootNode)
 	}
 
 
@@ -85,4 +77,24 @@ func GenTrees(roster *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) 
 	//}
 
 	return trees, nil
+}
+
+func genSubtree(roster *onet.Roster, subleaderID int) (*onet.Tree, error) {
+
+	//generate leader and subleader
+	rootNode := onet.NewTreeNode(0, roster.List[0])
+	subleader := onet.NewTreeNode(subleaderID, roster.List[subleaderID])
+	subleader.Parent = rootNode
+	rootNode.Children = []*onet.TreeNode{subleader}
+
+	//generate leaves
+	for j := 1 ; j < len(roster.List) ; j++ {
+		if j != subleaderID {
+			node := onet.NewTreeNode(j, roster.List[j])
+			node.Parent = subleader
+			subleader.Children = append(subleader.Children, node)
+		}
+	}
+
+	return onet.NewTree(roster, rootNode), nil
 }
