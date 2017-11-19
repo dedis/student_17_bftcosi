@@ -64,3 +64,10 @@ type StructResponse struct {
 	*onet.TreeNode
 	Response
 }
+
+type Stop struct {}
+
+type StructStop struct {
+	*onet.TreeNode
+	Stop
+}

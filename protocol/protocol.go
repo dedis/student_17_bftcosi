@@ -12,11 +12,7 @@ import (
 )
 
 func init() {
-	network.RegisterMessage(Announcement{})
-	network.RegisterMessage(Commitment{})
-	network.RegisterMessage(Challenge{})
-	network.RegisterMessage(Response{})
-	//TODO: define a stop message
+	network.RegisterMessages(Announcement{}, Commitment{}, Challenge{}, Response{}, Stop{})
 
 	onet.GlobalProtocolRegister(ProtocolName, NewProtocol)
 	onet.GlobalProtocolRegister(SubProtocolName, NewSubProtocol)
@@ -102,6 +98,9 @@ func (p *CosiRootNode) Dispatch() error {
 			select {
 			case _ = <-protocol.subleaderNotResponding:
 				log.Lvl3("subleader %d failed, restarting it", i)
+
+				//send stop signal
+				protocol.SendTo(protocol.TreeNode(), Stop{})
 
 				//generate new tree
 				subleaderID := trees[i].Root.Children[0].RosterIndex

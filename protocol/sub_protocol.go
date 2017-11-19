@@ -159,5 +159,19 @@ func NewSubProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 			return nil, errors.New("couldn't register channel: " + err.Error())
 		}
 	}
+	err := c.RegisterHandler(c.HandleStop)
+	if err != nil {
+		return nil, errors.New("couldn't register handler: " + err.Error())
+	}
 	return c, nil
+}
+
+func (p *CosiSubProtocolNode) HandleStop(stop []StructStop) error {
+	defer p.Done()
+
+	if p.IsRoot() {
+		p.Broadcast(stop)
+	}
+
+	return nil
 }
