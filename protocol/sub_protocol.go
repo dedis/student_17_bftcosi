@@ -7,17 +7,24 @@ import (
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
+	"fmt"
+	"errors"
 )
 
-// Cosi holds the different channels used to receive the different protocol messages.
+// CosiSubProtocolNode holds the different channels used to receive the different protocol messages.
 // It also defines a channel that will receive the final signature. Only the
 // root-node will write to this channel.
-type Cosi struct {
+type CosiSubProtocolNode struct {
 	*onet.TreeNodeInstance
-	List                   []abstract.Point
-	MinSubtreeSize         int // can be one more //TODO: see if still useful
+	Publics					[]abstract.Point
+	Proposal				[]byte
+
+	//protocol/subprotocol channels
 	subleaderNotResponding chan bool
-	FinalSignature         chan []byte
+	subCommitment		   chan StructCommitment
+	subResponse            chan StructResponse
+
+	//internodes channels
 	ChannelAnnouncement    chan StructAnnouncement
 	ChannelCommitment      chan []StructCommitment
 	ChannelChallenge       chan StructChallenge
@@ -25,60 +32,74 @@ type Cosi struct {
 }
 
 // Start is done only by root and sends the announcement message to all children
-func (p *Cosi) Start() error {
-	log.Lvl3("Starting Cosi")
-	proposal := []byte{0xFF}
+func (p *CosiSubProtocolNode) Start() error {
+	log.Lvl3("Starting subCoSi")
+	if p.Proposal == nil {
+		return fmt.Errorf("subprotocol started without any proposal set")
+	} else if p.Publics == nil || len(p.Publics) < 1 {
+		return fmt.Errorf("subprotocol started with an invlid public key list")
+	}
 	announcement := StructAnnouncement{p.TreeNode(),
-		Announcement{proposal}}
+		Announcement{p.Proposal, p.Publics}}
 	p.ChannelAnnouncement <- announcement
 	return nil
 }
 
 //Dispatch() is the main method of the protocol, handling the messages in order
-func (p *Cosi) Dispatch() error {
+func (p *CosiSubProtocolNode) Dispatch() error {
 	defer p.Done() //TODO: see if should stop node or be ready for another proposal
 
 	// ----- Announcement -----
 	announcement := <-p.ChannelAnnouncement
 	log.Lvl3(p.ServerIdentity().Address, "received announcement")
+	p.Publics = announcement.Publics
 	err := p.SendToChildren(&announcement.Announcement)
 	if err != nil {
 		return err
 	}
 
 	// ----- Commitment -----
+
+	//get commitment
 	if p.IsLeaf() {
 		p.ChannelCommitment <- make([]StructCommitment, 0)
 	}
 	commitments := make([]StructCommitment, 0)
 	select {
 	case commitments = <-p.ChannelCommitment:
+		log.Lvl3(p.ServerIdentity().Address, "received commitment")
 	case <-time.After(Timeout):
 		if p.IsRoot() {
 			p.subleaderNotResponding <- true
 			return nil
 		}
 	}
-	log.Lvl3(p.ServerIdentity().Address, "received commitment")
-	secret, commitment, mask, err := p.generateCommitment(commitments)
-	if err != nil {
-		return err
-	}
-	err = p.SendToParent(&Commitment{commitment, mask.Mask()})
-	if err != nil {
-		return err
-	}
 
-	// ----- Challenge -----
+ 	var secret abstract.Scalar
+
+ 	// if root, send commitment to super-protocol
 	if p.IsRoot() {
-		cosiChallenge, err := cosi.Challenge(p.Suite(), commitment,
-			p.Root().PublicAggregateSubTree, announcement.Proposal)
+		if len(commitments) != 1 {
+			return fmt.Errorf("root node in subprotocol should have received 1 commitment," +
+				"but received %d", len(commitments))
+		}
+		p.subCommitment <- commitments[0]
+
+	// if not root, compute personal commitment and send to parent
+	} else {
+		var commitment abstract.Point
+		var mask *cosi.Mask
+		secret, commitment, mask, err = generatePersonnalCommitment(p.TreeNodeInstance, p.Publics, commitments)
 		if err != nil {
 			return err
 		}
-		p.ChannelChallenge <- StructChallenge{p.TreeNode(), Challenge{cosiChallenge}}
-
+		err = p.SendToParent(&Commitment{commitment, mask.Mask()})
+		if err != nil {
+			return err
+		}
 	}
+
+	// ----- Challenge -----
 	challenge := <-p.ChannelChallenge
 	log.Lvl3(p.ServerIdentity().Address, "received challenge")
 	err = p.SendToChildren(&challenge.Challenge)
@@ -87,105 +108,56 @@ func (p *Cosi) Dispatch() error {
 	}
 
 	// ----- Response -----
+
+	//get response
 	if p.IsLeaf() {
 		p.ChannelResponse <- make([]StructResponse, 0)
 	}
 	responses := <-p.ChannelResponse
 	log.Lvl3(p.ServerIdentity().Address, "received response")
-	response, err := p.generateResponse(responses, secret, challenge.Challenge.CosiChallenge)
-	if err != nil {
-		return err
-	}
-	err = p.SendToParent(&Response{response})
-	if err != nil {
-		return err
-	}
 
-	// ----- Final Signature -----
+	//if root, send response to super-protocol
 	if p.IsRoot() {
-		log.Lvl3(p.ServerIdentity().Address, "starts final signature")
-		var signature []byte
-		signature, err = cosi.Sign(p.Suite(), commitment, response, mask)
+		if len(responses) != 1 {
+			return fmt.Errorf("root node in subprotocol should have received 1 response," +
+				"but received %d", len(commitments))
+		}
+		p.subResponse <- responses[0]
+
+	// if not root, generate own response and send to parent
+	} else {
+		response, err := generateResponse(p.TreeNodeInstance, responses, secret, challenge.Challenge.CosiChallenge)
 		if err != nil {
 			return err
 		}
-		p.FinalSignature <- signature
-		log.Lvl3("Root-node is done")
-		return nil
-
+		err = p.SendToParent(&Response{response})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-// generateCommitment generates a personal secret and commitment
-// and returns respectively the secret, an aggregated commitment and an aggregated mask
-func (p *Cosi) generateCommitment(structCommitments []StructCommitment) (abstract.Scalar, abstract.Point, *cosi.Mask, error) {
+// The `NewProtocol` method is used to define the protocol and to register
+// the channels where the messages will be received.
+func NewSubProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 
-	//extract lists of commitments and masks
-	var commitments []abstract.Point
-	var masks [][]byte
-	for _, c := range structCommitments {
-		commitments = append(commitments, c.CosiCommitment)
-		masks = append(masks, c.Mask)
+	c := &CosiSubProtocolNode{
+		TreeNodeInstance:       n,
 	}
 
-	//generate personal secret and commitment
-	secret, commitment := cosi.Commit(p.Suite(), nil)
-	commitments = append(commitments, commitment)
-
-	//generate personal mask
-	personalMask, err := cosi.NewMask(p.Suite(), p.List, p.TreeNode().PublicAggregateSubTree)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	masks = append(masks, personalMask.Mask())
-
-	//aggregate commitments and masks
-	aggCommitment, aggMask, err :=
-		cosi.AggregateCommitments(p.Suite(), commitments, masks)
-	if err != nil {
-		return nil, nil, nil, err
+	if n.IsRoot() {
+		c.subleaderNotResponding = make(chan bool)
+		c.subCommitment	= make(chan StructCommitment)
+		c.subResponse =	make(chan StructResponse)
 	}
 
-	//create final aggregated mask
-	finalMask, err := cosi.NewMask(p.Suite(), p.List, nil)
-	if err != nil {
-		return nil, nil, nil, err
+	for _, channel := range []interface{}{&c.ChannelAnnouncement, &c.ChannelCommitment, &c.ChannelChallenge, &c.ChannelResponse} {
+		err := c.RegisterChannel(channel)
+		if err != nil {
+			return nil, errors.New("couldn't register channel: " + err.Error())
+		}
 	}
-	finalMask.SetMask(aggMask)
-
-	log.Lvl3(p.ServerIdentity().Address, "is done aggregating commitments with total of",
-		len(commitments), "commitments")
-
-	return secret, aggCommitment, finalMask, nil
-}
-
-// generateResponse generates a personal response based on the secret
-// and returns the aggregated response of all children and the node
-func (p *Cosi) generateResponse(structResponse []StructResponse, secret abstract.Scalar, challenge abstract.Scalar) (abstract.Scalar, error) {
-
-	//extract lists of responses
-	var responses []abstract.Scalar
-	for _, c := range structResponse {
-		responses = append(responses, c.CosiReponse)
-	}
-
-	//generate personal response
-	personalResponse, err := cosi.Response(p.Suite(), p.TreeNodeInstance.Private(), secret, challenge)
-	if err != nil {
-		return nil, err
-	}
-	responses = append(responses, personalResponse)
-
-	//aggregate responses
-	aggResponse, err := cosi.AggregateResponses(p.Suite(), responses)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Lvl3(p.ServerIdentity().Address, "is done aggregating responses with total of",
-		len(responses), "responses")
-
-	return aggResponse, nil
+	return c, nil
 }

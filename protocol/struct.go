@@ -14,12 +14,14 @@ import (
 	"time"
 )
 
-// Name can be used from other packages to refer to this protocol.
-const Name = "Cosi"
+// ProtocolName can be used from other packages to refer to this protocol.
+const ProtocolName = "CoSi"
+const SubProtocolName = "SubCoSi"
 const Timeout = network.WaitRetry * time.Duration(network.MaxRetryConnect*2) * time.Millisecond
 
 type Announcement struct {
-	 Proposal []byte
+	 Proposal	[]byte
+	 Publics	[]abstract.Point
 }
 
 // StructAnnouncement just contains Announcement and the data necessary to identify and

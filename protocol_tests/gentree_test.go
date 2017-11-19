@@ -36,7 +36,7 @@ func TestGenTreeRoot(t *testing.T) {
 			}
 			root := trees[0].Root.ServerIdentity
 			for _, tree := range trees {
-				if tree.Root == nil { //TODO: do this test in testNode?
+				if tree.Root == nil {
 					t.Fatal("Tree Root shouldn't be nil")
 				}
 				if tree.Root.ServerIdentity != root {

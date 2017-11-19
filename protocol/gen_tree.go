@@ -17,15 +17,15 @@ func GenTrees(roster *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) 
 		return nil, errors.New("the roster is nil")
 	}
 	if nNodes < 1 {
-		return nil, fmt.Errorf("the number of nodes in the global tree " +
+		return nil, fmt.Errorf("the number of nodes in the trees " +
 			"cannot be less than one, but is %d", nNodes)
 	}
 	if len(roster.List) < nNodes {
-		return nil, fmt.Errorf("the global tree should have %d nodes, " +
+		return nil, fmt.Errorf("the trees should have %d nodes, " +
 			"but there is only %d servers in the roster", nNodes, len(roster.List))
 	}
 	if nSubtrees < 1 {
-		return nil, fmt.Errorf("the number of shards in the global tree " +
+		return nil, fmt.Errorf("the number of shards in the trees " +
 			"cannot be less than one, but is %d", nSubtrees)
 	}
 
