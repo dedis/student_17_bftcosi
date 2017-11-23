@@ -121,7 +121,7 @@ func (p *CosiRootNode) Dispatch() error {
 				cosiProtocols[i] = protocol
 			case commitment := <-protocol.subCommitment:
 				commitments[i] = commitment
-			case <-time.After(p.ProtocolTimeout/4):
+			case <-time.After(p.ProtocolTimeout):
 				return fmt.Errorf("didn't get commitment in time")
 			}
 		}
