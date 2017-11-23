@@ -16,8 +16,10 @@ import (
 
 // ProtocolName can be used from other packages to refer to this protocol.
 const ProtocolName = "CoSi"
-const SubProtocolName = "SubCoSi"
-const Timeout = network.WaitRetry * time.Duration(network.MaxRetryConnect*2) * time.Millisecond
+const subProtocolName = "SubCoSi"
+
+const DefaultProtocolTimeout = network.WaitRetry * time.Duration(network.MaxRetryConnect*2) * time.Millisecond
+const subleaderTimeoutProportion = 0.01
 
 type Announcement struct {
 	 Proposal	[]byte

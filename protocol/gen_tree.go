@@ -7,8 +7,10 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
-// GenTree will create a tree of n servers with a localRouter, and returns the
-// list of servers and the associated roster / tree.
+// GenTree will create a given number of subtrees of the same number of nodes.
+// Each generated subtree will have the same root.
+// Each generated tree have a root with one child (the subleader)
+// and all other nodes in the tree will be the subleader children.
 // NOTE: register being not implementable with the current API could hurt the scalability tests
 func GenTrees(roster *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) {
 
@@ -25,7 +27,7 @@ func GenTrees(roster *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) 
 			"but there is only %d servers in the roster", nNodes, len(roster.List))
 	}
 	if nSubtrees < 1 {
-		return nil, fmt.Errorf("the number of shards in the trees " +
+		return nil, fmt.Errorf("the number of subtrees" +
 			"cannot be less than one, but is %d", nSubtrees)
 	}
 
@@ -43,14 +45,14 @@ func GenTrees(roster *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) 
 	}
 
 
-	//generate each shard
-	nodesPerShard := (nNodes - 1) / nSubtrees
+	//generate each subtree
+	nodesPerSubtree := (nNodes - 1) / nSubtrees
 	surplusNodes := (nNodes - 1) % nSubtrees
 
 	start := 1
 	for i := 0 ; i< nSubtrees; i++ {
 
-		end := start + nodesPerShard
+		end := start + nodesPerSubtree
 		if i < surplusNodes { //to handle surplus nodes
 			end++
 		}
@@ -79,7 +81,17 @@ func GenTrees(roster *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) 
 	return trees, nil
 }
 
+// genSubtree generates a single subtree with a given subleaderID.
+// The generated tree will have a root with one child (the subleader)
+// and all other nodes in the roster will be the subleader children.
 func genSubtree(roster *onet.Roster, subleaderID int) (*onet.Tree, error) {
+
+	if len(roster.List) < 2 {
+		return nil, fmt.Errorf("the roster size must be greater than 1, but is %s", len(roster.List))
+
+	} else if subleaderID < 1 || subleaderID >= len(roster.List) {
+		return nil, fmt.Errorf("the subleader id should be between in range [1, %s] (size of roster), but is %s", len(roster.List)-1, subleaderID)
+	}
 
 	//generate leader and subleader
 	rootNode := onet.NewTreeNode(0, roster.List[0])
