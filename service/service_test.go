@@ -14,13 +14,14 @@ func TestMain(m *testing.M) {
 }
 
 func TestService_ClockRequest(t *testing.T) {
+	log.SetDebugVisible(3) //TODO: remove once debugged
 	local := onet.NewTCPTest()
 	// generate 5 hosts, they don't connect, they process messages, and they
 	// don't register the tree or entitylist
 	hosts, roster, _ := local.GenTree(5, true)
 	defer local.CloseAll()
 
-	services := local.GetServices(hosts, templateID)
+	services := local.GetServices(hosts, cosiID)
 
 	for _, s := range services {
 		log.Lvl2("Sending request to", s)
@@ -42,7 +43,7 @@ func TestService_CountRequest(t *testing.T) {
 	hosts, roster, _ := local.GenTree(5, true)
 	defer local.CloseAll()
 
-	services := local.GetServices(hosts, templateID)
+	services := local.GetServices(hosts, cosiID)
 
 	for _, s := range services {
 		log.Lvl2("Sending request to", s)

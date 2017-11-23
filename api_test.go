@@ -17,6 +17,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestClient_Clock(t *testing.T) {
+	log.SetDebugVisible(3) //TODO: remove once debugged
 	nbr := 5
 	local := onet.NewTCPTest()
 	// generate 5 hosts, they don't connect, they process messages, and they

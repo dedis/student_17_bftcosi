@@ -15,7 +15,7 @@ import (
 )
 
 // ServiceName is used for registration on the onet.
-const ServiceName = "Template"
+const ServiceName = "CoSi"
 
 // Client is a structure to communicate with the CoSi
 // service
@@ -28,6 +28,10 @@ func NewClient() *Client {
 	return &Client{Client: onet.NewClient(ServiceName)}
 }
 
+// Clock chooses one server from the Roster at random. It
+// sends a ClockRequest to it, which is then processed on the server side
+// via the code in the service package.
+//
 // Clock will return the time in seconds it took to run the protocol.
 func (c *Client) Clock(r *onet.Roster) (*ClockResponse, onet.ClientError) {
 	dst := r.RandomServerIdentity()

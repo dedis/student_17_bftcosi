@@ -19,16 +19,16 @@ import (
 )
 
 // Used for tests
-var templateID onet.ServiceID
+var cosiID onet.ServiceID
 
 func init() {
 	var err error
-	templateID, err = onet.RegisterNewService(cosi.ServiceName, newService)
+	cosiID, err = onet.RegisterNewService(cosi.ServiceName, newService)
 	log.ErrFatal(err)
 	network.RegisterMessage(&storage{})
 }
 
-// Service is our template-service
+// Service is our cosi-service
 type Service struct {
 	// We need to embed the ServiceProcessor, so that incoming messages
 	// are correctly handled.
@@ -47,7 +47,7 @@ type storage struct {
 	sync.Mutex
 }
 
-// ClockRequest starts a template-protocol and returns the run-time.
+// ClockRequest starts a cosi-protocol and returns the run-time.
 func (s *Service) ClockRequest(req *cosi.ClockRequest) (*cosi.ClockResponse, onet.ClientError) {
 	s.storage.Lock()
 	s.storage.Count++
