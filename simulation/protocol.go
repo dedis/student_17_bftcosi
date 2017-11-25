@@ -91,6 +91,9 @@ func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
 		proto := p.(*protocol.CosiRootNode)
 		proto.NSubtrees = s.NSubtrees
 		proto.Proposal = []byte{0xFF}
+		proto.CreateProtocol = func(name string, t *onet.Tree) (onet.ProtocolInstance, error) {
+			return config.Overlay.CreateProtocol(name, t, onet.NilServiceID)
+		}
 		go func() {
 			log.ErrFatal(p.Start())
 		}()

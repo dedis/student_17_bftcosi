@@ -183,8 +183,8 @@ func (p *CosiRootNode) Start() error {
 	if p.Proposal == nil {
 		return fmt.Errorf("no proposal specified")
 	} else if p.CreateProtocol == nil {
-		return fmt.Errorf("no start function specified")
-	} else if p.NSubtrees < 0 {
+		return fmt.Errorf("no create protocol function specified")
+	} else if p.NSubtrees < 1 {
 		p.NSubtrees = 1
 	} else if p.ProtocolTimeout < 10 {
 		p.ProtocolTimeout = DefaultProtocolTimeout
