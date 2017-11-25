@@ -100,7 +100,7 @@ func (p *CosiRootNode) Dispatch() error {
 				log.Lvlf2("subleader from tree %d failed, restarting it", i)
 
 				//send stop signal
-				protocol.SendTo(protocol.TreeNode(), &Stop{})
+				protocol.HandleStop(StructStop{protocol.TreeNode(), Stop{}})
 
 				//generate new tree
 				subleaderID := trees[i].Root.Children[0].RosterIndex

@@ -31,12 +31,13 @@ import (
 )
 
 func init() {
-	onet.SimulationRegister("TemplateProtocol", NewSimulationProtocol)
+	onet.SimulationRegister("CosiProtocol", NewSimulationProtocol)
 }
 
 // SimulationProtocol implements onet.Simulation.
 type SimulationProtocol struct {
 	onet.SimulationBFTree
+	NSubtrees int
 }
 
 // NewSimulationProtocol is used internally to register the simulation (see the init()
@@ -82,13 +83,18 @@ func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
 	for round := 0; round < s.Rounds; round++ {
 		log.Lvl1("Starting round", round)
 		round := monitor.NewTimeMeasure("round")
-		p, err := config.Overlay.CreateProtocol("Template", config.Tree,
+		p, err := config.Overlay.CreateProtocol(protocol.ProtocolName, config.Tree,
 			onet.NilServiceID)
 		if err != nil {
 			return err
 		}
-		go p.Start()
-		Signature := <-p.(*protocol.CosiRootNode).FinalSignature
+		proto := p.(*protocol.CosiRootNode)
+		proto.NSubtrees = s.NSubtrees
+		proto.Proposal = []byte{0xFF}
+		go func() {
+			log.ErrFatal(p.Start())
+		}()
+		Signature := <-proto.FinalSignature
 		round.Record()
 
 		//TODO: update
