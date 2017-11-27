@@ -61,7 +61,7 @@ func TestProtocol(t *testing.T) {
 			//verify signature
 			err = cosi.Verify(network.Suite, publics, proposal, signature, cosi.CompletePolicy{})
 			if err != nil {
-				t.Fatal("Didn't get a valid response aggregate:", err)
+				t.Fatal("Error while verifying signature:", err)
 			}
 			log.Lvl2("Signature correctly verified!")
 			local.CloseAll()
@@ -115,7 +115,7 @@ func TestUnresponsiveSubleader(t *testing.T) {
 				// Finally give the message back to onet. If this last call is not
 				// made, the message is dropped.
 
-				switch msg.(type) { //TODO: ask for wether or not we can get server[0] id
+				switch msg.(type) { //TODO: ask for whether or not we can get server[0] id
 				case *protocol.Announcement:
 					if AnnouncementDropped {
 						local.Overlays[servers[1].ServerIdentity.ID].Process(e)

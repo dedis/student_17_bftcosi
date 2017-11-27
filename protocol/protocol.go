@@ -59,7 +59,6 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 //Dispatch() is the main method of the protocol, defining the root node behaviour
 // and sequential handling of subprotocols.
 func (p *CosiRootNode) Dispatch() error {
-	defer p.Done()
 
 	if !p.IsRoot() {
 		return nil
@@ -173,7 +172,7 @@ func (p *CosiRootNode) Dispatch() error {
 	}
 	p.FinalSignature <- signature
 
-	log.Lvl3("Root-node is done")
+	log.Lvl3("Root-node is done without errors")
 	return nil
 }
 

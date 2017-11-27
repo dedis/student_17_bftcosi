@@ -28,6 +28,10 @@ import (
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 	"gopkg.in/dedis/onet.v1/simul/monitor"
+	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/onet.v1/network"
+	"github.com/dedis/student_17_bftcosi/cosi"
+	"fmt"
 )
 
 func init() {
@@ -83,6 +87,8 @@ func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
 	for round := 0; round < s.Rounds; round++ {
 		log.Lvl1("Starting round", round)
 		round := monitor.NewTimeMeasure("round")
+
+		proposal := []byte{0xFF}
 		p, err := config.Overlay.CreateProtocol(protocol.ProtocolName, config.Tree,
 			onet.NilServiceID)
 		if err != nil {
@@ -90,7 +96,7 @@ func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
 		}
 		proto := p.(*protocol.CosiRootNode)
 		proto.NSubtrees = s.NSubtrees
-		proto.Proposal = []byte{0xFF}
+		proto.Proposal = proposal
 		proto.CreateProtocol = func(name string, t *onet.Tree) (onet.ProtocolInstance, error) {
 			return config.Overlay.CreateProtocol(name, t, onet.NilServiceID)
 		}
@@ -100,12 +106,19 @@ func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
 		Signature := <-proto.FinalSignature
 		round.Record()
 
-		//TODO: update
-		log.Lvl2(Signature)
-//		if Signature != size {
-//			return errors.New("Didn't get " + strconv.Itoa(size) +
-//				" children")
-//		}
+		//get public keys
+		publics := make([]abstract.Point, config.Tree.Size())
+		for i, node := range config.Tree.List() {
+			publics[i] = node.ServerIdentity.Public
+		}
+
+		//verify signature
+		err = cosi.Verify(network.Suite, publics, proposal, Signature, cosi.CompletePolicy{})
+		if err != nil {
+			return fmt.Errorf("error while verifying signature:%s", err)
+		}
+		log.Lvl2("Signature correctly verified!")
+
 	}
 	return nil
 }

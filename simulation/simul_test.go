@@ -12,6 +12,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestSimulation(t *testing.T) {
-	log.SetDebugVisible(3)
+	//log.SetDebugVisible(3)
 	simul.Start("protocol.toml")
 }
