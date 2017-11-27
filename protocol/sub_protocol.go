@@ -17,7 +17,7 @@ type CosiSubProtocolNode struct {
 	Publics					[]abstract.Point
 	Proposal				[]byte
 	SubleaderTimeout		time.Duration //only defined for the root
-	hasStopped				bool //only defined for the root, to avoid multiple deletion
+	hasStopped				bool //used since Shutdown can be called multiple time
 
 	//protocol/subprotocol channels
 	subleaderNotResponding chan bool
@@ -37,13 +37,13 @@ func NewSubProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 
 	c := &CosiSubProtocolNode{
 		TreeNodeInstance:       n,
+		hasStopped:				false,
 	}
 
 	if n.IsRoot() {
 		c.subleaderNotResponding = make(chan bool)
 		c.subCommitment	= make(chan StructCommitment)
 		c.subResponse =	make(chan StructResponse)
-		c.hasStopped = false
 	}
 
 	for _, channel := range []interface{}{&c.ChannelAnnouncement, &c.ChannelCommitment, &c.ChannelChallenge, &c.ChannelResponse} {
@@ -59,14 +59,25 @@ func NewSubProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	return c, nil
 }
 
+func (p *CosiSubProtocolNode) Shutdown() error {
+	if !p.hasStopped {
+		close(p.ChannelAnnouncement)
+		close(p.ChannelCommitment)
+		close(p.ChannelChallenge)
+		close(p.ChannelResponse)
+		p.hasStopped = true
+	}
+	return nil
+}
+
 //Dispatch() is the main method of the subprotocol, running on each node and handling the messages in order
 func (p *CosiSubProtocolNode) Dispatch() error {
-	if p.IsRoot() { //TODO: see if should stop node or be ready for another proposal
-		defer p.HandleStop(StructStop{p.TreeNode(), Stop{}})
-	}
 
 	// ----- Announcement -----
-	announcement := <-p.ChannelAnnouncement
+	announcement, channelOpen := <-p.ChannelAnnouncement
+	if !channelOpen {
+		return nil
+	}
 	log.Lvl3(p.ServerIdentity().Address, "received announcement")
 	p.Publics = announcement.Publics
 	err := p.SendToChildren(&announcement.Announcement)
@@ -152,20 +163,17 @@ func (p *CosiSubProtocolNode) Dispatch() error {
 		}
 	}
 
+	//TODO: see if should stop node or be ready for another proposal
 	return nil
 }
 
 //HandleStop is called when a Stop message is send to this node.
 // It broadcasts the message and stops the node
 func (p *CosiSubProtocolNode) HandleStop(stop StructStop) error {
-	if !p.IsRoot() {
-		defer p.Done()
-	} else if !p.hasStopped {
-		defer p.Done()
+	defer p.Done()
+	if p.IsRoot() {
 		p.Broadcast(&stop.Stop)
-		p.hasStopped = true
 	}
-
 	return nil
 }
 

@@ -12,7 +12,6 @@ import (
 	"time"
 )
 
-
 // Tests various trees configurations
 func TestProtocol(t *testing.T) {
 	//log.SetDebugVisible(3)
@@ -80,7 +79,7 @@ func TestUnresponsiveSubleader(t *testing.T) {
 
 	for _, nNodes := range nodes {
 		for _, nSubtrees := range subtrees {
-			log.Lvl2(nNodes, nSubtrees)
+			log.Lvl2("test asking for",nNodes, "nodes and", nSubtrees, "subtrees")
 
 			servers, _, tree := local.GenTree(nNodes, false)
 
@@ -101,30 +100,29 @@ func TestUnresponsiveSubleader(t *testing.T) {
 			cosiProtocol.NSubtrees = nSubtrees
 			cosiProtocol.ProtocolTimeout = protocol.DefaultProtocolTimeout / 10000
 
-			//define intercept message
+			//setup announcement interception
 			AnnouncementDropped := false
-			servers[1].RegisterProcessorFunc(onet.ProtocolMsgID, func(e *network.Envelope) {
-				// protoMsg holds also To and From fields that can help decide
-				// whether a message should be sent or not.
+			subleaderServer := servers[1]
+			subleaderServer.RegisterProcessorFunc(onet.ProtocolMsgID, func(e *network.Envelope) {
+
+				//get message
 				protoMsg := e.Msg.(*onet.ProtocolMsg)
 				_, msg, err := network.Unmarshal(protoMsg.MsgSlice)
 				if err != nil {
 					t.Fatal("error while unmarshaling a message:", err)
 				}
 
-				// Finally give the message back to onet. If this last call is not
-				// made, the message is dropped.
-
-				switch msg.(type) { //TODO: ask for whether or not we can get server[0] id
+				//ignore the first announcement
+				switch msg.(type) { //TODO: ask for whether or not we can compare protoMsg.From with server[0] id
 				case *protocol.Announcement:
 					if AnnouncementDropped {
-						local.Overlays[servers[1].ServerIdentity.ID].Process(e)
+						local.Overlays[subleaderServer.ServerIdentity.ID].Process(e)
 					} else {
-						log.Lvlf2("Dropped first announcement")
+						log.Lvl2("Dropped first announcement")
+						AnnouncementDropped = true
 					}
-					AnnouncementDropped = true
 				default:
-					local.Overlays[servers[1].ServerIdentity.ID].Process(e)
+					local.Overlays[subleaderServer.ServerIdentity.ID].Process(e)
 				}
 			})
 

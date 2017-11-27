@@ -11,8 +11,6 @@ import (
 	"gopkg.in/dedis/onet.v1/log"
 )
 
-//TODO: find and destroy "Node [...] already gone" warning message
-
 //init() is done at startup. It defines every messages that is handled by the network
 // and registers the protocols.
 func init() {
