@@ -17,7 +17,7 @@ type CosiSubProtocolNode struct {
 	Publics					[]abstract.Point
 	Proposal				[]byte
 	SubleaderTimeout		time.Duration //only defined for the root
-	hasStopped				bool //used since Shutdown can be called multiple time
+	hasStopped				bool //used since Shutdown can be called multiple time //TODO: check that necessary
 
 	//protocol/subprotocol channels
 	subleaderNotResponding chan bool

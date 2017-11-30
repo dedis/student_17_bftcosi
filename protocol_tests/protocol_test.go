@@ -10,6 +10,7 @@ import (
 	"github.com/dedis/student_17_bftcosi/cosi"
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"time"
+	"fmt"
 )
 
 // Tests various trees configurations
@@ -48,21 +49,12 @@ func TestProtocol(t *testing.T) {
 				t.Fatal("Error in starting of protocol:", err)
 			}
 
-			//get response
-			var signature []byte
-			select {
-				case signature = <-cosiProtocol.FinalSignature:
-					log.Lvl3("Instance is done")
-				case <-time.After(protocol.DefaultProtocolTimeout):
-					t.Fatal("Didn't get commitment in time")
+			//get and verify signature
+			err = getAndVerifySignature(cosiProtocol, publics, proposal)
+			if err != nil {
+				t.Fatal(err)
 			}
 
-			//verify signature
-			err = cosi.Verify(network.Suite, publics, proposal, signature, cosi.CompletePolicy{})
-			if err != nil {
-				t.Fatal("Error while verifying signature:", err)
-			}
-			log.Lvl2("Signature correctly verified!")
 			local.CloseAll()
 		}
 	}
@@ -132,28 +124,19 @@ func TestUnresponsiveSubleader(t *testing.T) {
 				t.Fatal("Error in starting of protocol:", err)
 			}
 
-			//get response
-			var signature []byte
-			select {
-			case signature = <-cosiProtocol.FinalSignature:
-				log.Lvl3("Instance is done")
-			case <-time.After(protocol.DefaultProtocolTimeout):
-				t.Fatal("Didn't get commitment in time")
+			//get and verify signature
+			err = getAndVerifySignature(cosiProtocol, publics, proposal)
+			if err != nil {
+				t.Fatal(err)
 			}
 
-			//verify signature
-			err = cosi.Verify(network.Suite, publics, proposal, signature, cosi.CompletePolicy{})
-			if err != nil {
-				t.Fatal("Didn't get a valid response aggregate:", err)
-			}
-			log.Lvl2("Signature correctly verified!")
 			local.CloseAll()
 		}
 	}
 }
 
 // Tests that the protocol throws errors with invalid configurations
-func TestProtocolErrors(t *testing.T) {
+func TestProtocolErrors(t *testing.T) { //TODO: implement protocol interruption
 	//log.SetDebugVisible(3)
 
 	local := onet.NewLocalTest()
@@ -198,4 +181,24 @@ func TestProtocolErrors(t *testing.T) {
 			local.CloseAll()
 		}
 	}
+}
+
+func getAndVerifySignature(cosiProtocol *protocol.CosiRootNode, publics []abstract.Point, proposal []byte) error {
+
+	//get response
+	var signature []byte
+	select {
+	case signature = <-cosiProtocol.FinalSignature:
+		log.Lvl3("Instance is done")
+	case <-time.After(protocol.DefaultProtocolTimeout):
+		return fmt.Errorf("didn't get commitment in time")
+	}
+
+	//verify signature
+	err := cosi.Verify(network.Suite, publics, proposal, signature, cosi.CompletePolicy{})
+	if err != nil {
+		return fmt.Errorf("didn't get a valid signature: %s", err)
+	}
+	log.Lvl2("Signature correctly verified!")
+	return nil
 }
