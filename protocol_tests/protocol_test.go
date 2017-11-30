@@ -151,3 +151,51 @@ func TestUnresponsiveSubleader(t *testing.T) {
 		}
 	}
 }
+
+// Tests that the protocol throws errors with invalid configurations
+func TestProtocolErrors(t *testing.T) {
+	//log.SetDebugVisible(3)
+
+	local := onet.NewLocalTest()
+	nodes := []int{1, 2, 5, 13, 24}
+	subtrees := []int{1, 2, 5}
+	proposal := []byte{0xFF}
+
+	for _, nNodes := range nodes {
+		for _, nSubtrees := range subtrees {
+			log.Lvl2("test asking for",nNodes, "nodes and", nSubtrees, "subtrees")
+
+			_, _, tree := local.GenTree(nNodes, false)
+
+			//missing create protocol function
+			pi, err := local.CreateProtocol(protocol.ProtocolName, tree)
+			if err != nil {
+				t.Fatal("Error in creation of protocol:", err)
+			}
+			cosiProtocol := pi.(*protocol.CosiRootNode)
+			//cosiProtocol.CreateProtocol = local.CreateProtocol
+			cosiProtocol.Proposal = proposal
+			cosiProtocol.NSubtrees = nSubtrees
+			err = cosiProtocol.Start()
+			if err == nil {
+				t.Fatal("protocol should throw an error if called without create protocol function, but doesn't")
+			}
+
+			//missing proposal
+			pi, err = local.CreateProtocol(protocol.ProtocolName, tree)
+			if err != nil {
+				t.Fatal("Error in creation of protocol:", err)
+			}
+			cosiProtocol = pi.(*protocol.CosiRootNode)
+			cosiProtocol.CreateProtocol = local.CreateProtocol
+			//cosiProtocol.Proposal = proposal
+			cosiProtocol.NSubtrees = nSubtrees
+			err = cosiProtocol.Start()
+			if err == nil {
+				t.Fatal("protocol should throw an error if called without a proposal, but doesn't")
+			}
+
+			local.CloseAll()
+		}
+	}
+}

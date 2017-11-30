@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 }
 
 //tests the root of the trees
-func TestGenTreeRoot(t *testing.T) {
+func TestGenTreesRoot(t *testing.T) {
 	local := onet.NewLocalTest()
 
 	nodes := []int{1, 2, 5, 20}
@@ -50,7 +50,7 @@ func TestGenTreeRoot(t *testing.T) {
 }
 
 //tests the number of nodes of the tree
-func TestGenTreeCount(t *testing.T) {
+func TestGenTreesCount(t *testing.T) {
 	local := onet.NewLocalTest()
 
 	nodes := []int{1, 2, 5, 20}
@@ -81,7 +81,7 @@ func TestGenTreeCount(t *testing.T) {
 }
 
 //tests that the generated tree has the good number of subtrees
-func TestGenTreeSubtrees(t *testing.T) {
+func TestGenTreesSubtrees(t *testing.T) {
 	local := onet.NewLocalTest()
 
 	nodes := []int{1, 2, 5, 20}
@@ -114,7 +114,7 @@ func TestGenTreeSubtrees(t *testing.T) {
 }
 
 //tests the second and third level of all trees
-func TestGenTreeComplete(t *testing.T) {
+func TestGenTreesComplete(t *testing.T) {
 	local := onet.NewLocalTest()
 
 	nodes := []int{1, 2, 5, 20}
@@ -133,6 +133,7 @@ func TestGenTreeComplete(t *testing.T) {
 			nodesDepth2 := ((nNodes - 1) / nSubtrees) - 1
 			for _, tree := range trees {
 				if tree.Size() < 2 {
+					local.CloseAll()
 					continue
 				}
 				subleader := tree.Root.Children[0]
@@ -168,7 +169,7 @@ func testNode(t *testing.T, node, parent *onet.TreeNode, tree *onet.Tree) {
 
 
 //tests that the GenTree function returns errors correctly
-func TestGenTreeErrors(t *testing.T) {
+func TestGenTreesErrors(t *testing.T) {
 	local := onet.NewLocalTest()
 
 	negativeNumbers := []int{0, -1, -2, -12, -34}
@@ -203,7 +204,7 @@ func TestGenTreeErrors(t *testing.T) {
 }
 
 //tests that the GenTree function returns roster errors correctly
-func TestGenTreeRosterErrors(t *testing.T) {
+func TestGenTreesRosterErrors(t *testing.T) {
 	local := onet.NewLocalTest()
 
 	trees, err := protocol.GenTrees(nil, 12, 3)
@@ -233,7 +234,7 @@ func TestGenTreeRosterErrors(t *testing.T) {
 }
 
 //tests that the GenTree function uses as many different servers from the roster as possible
-func TestGenTreeUsesWholeRoster(t *testing.T) {
+func TestGenTreesUsesWholeRoster(t *testing.T) {
 	local := onet.NewLocalTest()
 
 	servers := []int{5, 13, 20}
@@ -271,6 +272,119 @@ func TestGenTreeUsesWholeRoster(t *testing.T) {
 				"different servers but uses", len(serverSet))
 		}
 
+
+		local.CloseAll()
+	}
+}
+
+//tests that the subtree generator puts the correct subleader in place
+func TestGenSubtreePutsCorrectSubleader(t *testing.T) {
+	local := onet.NewLocalTest()
+
+	nodes := []int{2, 5, 20}
+	subleaderIDs := []int{1, 2, 3, 12}
+	for _, nNodes := range nodes {
+		for _, subleaderID := range subleaderIDs {
+
+			servers := local.GenServers(nNodes)
+			roster := local.GenRosterFromHost(servers...)
+
+			tree, err := protocol.GenSubtree(roster, subleaderID)
+
+			if subleaderID >= nNodes { //should generate an error
+				if err == nil {
+					t.Fatal("subtree generation should return an error with a subleader id " +
+						"that is greater or equal to the number of nodes, but doesn't")
+				} else { // correctly generates error
+					local.CloseAll()
+					continue
+				}
+			} else if err != nil {
+				t.Fatal("error in subtree generation:", err)
+			}
+
+			if len(tree.Root.Children) != 1 {
+				t.Fatal("subtree should have exactly one subleader, but has", len(tree.Root.Children))
+			}
+
+			subleader := tree.Root.Children[0]
+
+			if subleader.ServerIdentity.ID != roster.List[subleaderID].ID {
+				t.Fatal("the subtree should have the node", subleaderID, "as subleader, but doesn't")
+			}
+			local.CloseAll()
+		}
+	}
+}
+
+// Tests that the subtree generator returns the correct structure
+// that is a root, with one child and all other nodes as this child' children
+func TestGenSubtreeStructure(t *testing.T) {
+	local := onet.NewLocalTest()
+
+	nodes := []int{2, 5, 20}
+	subleaderID := 1
+	for _, nNodes := range nodes {
+
+		servers := local.GenServers(nNodes)
+		roster := local.GenRosterFromHost(servers...)
+
+		tree, err := protocol.GenSubtree(roster, subleaderID)
+		if err != nil {
+			t.Fatal("error in subtree generation:", err)
+		}
+
+		if tree.Size() != nNodes {
+			t.Fatal("the subtree should contain", nNodes, "nodes, but contains", tree.Size())
+		}
+		if len(tree.Root.Children) != 1 {
+			t.Fatal("subtree should have exactly one subleader, but has", len(tree.Root.Children))
+		}
+		nLeaves := len(tree.Root.Children[0].Children)
+		if  nLeaves != nNodes-2 {
+			t.Fatal("subtree should have", nNodes-2, "leaves, but has", nLeaves)
+		}
+
+		local.CloseAll()
+	}
+}
+
+// Tests that the subtree generator throws errors with invalid parameters
+func TestGenSubtreeErrors(t *testing.T) {
+	local := onet.NewLocalTest()
+
+	nodes := []int{2, 5, 20}
+	correctSubleaderID := 1
+	for _, nNodes := range nodes {
+
+		servers := local.GenServers(nNodes)
+		roster := local.GenRosterFromHost(servers...)
+
+		_, err := protocol.GenSubtree(roster, -5)
+		if err == nil {
+			t.Fatal("subtree generator should throw an error with a negative subleader id, but doesn't")
+		}
+
+		_, err = protocol.GenSubtree(roster, 0)
+		if err == nil {
+			t.Fatal("subtree generator should throw an error with a zero subleader id, but doesn't")
+		}
+
+		_, err = protocol.GenSubtree(roster, nNodes)
+		if err == nil {
+			t.Fatal("subtree generator should throw an error with a too big subleader id, but doesn't")
+		}
+
+		_, err = protocol.GenSubtree(nil, correctSubleaderID)
+		if err == nil {
+			t.Fatal("subtree generator should throw an error with a nil roster, but doesn't")
+		}
+
+		emptyRoster := local.GenRosterFromHost(make([]*onet.Server, 0)...)
+		_, err = protocol.GenSubtree(emptyRoster, correctSubleaderID)
+		if err == nil {
+			t.Fatal("subtree generator should throw an error with a nil roster, but doesn't")
+		}
 
 		local.CloseAll()
 	}

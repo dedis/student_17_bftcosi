@@ -63,7 +63,7 @@ func GenTrees(roster *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) 
 		treeRoster := onet.NewRoster(servers)
 
 		var err error
-		trees[i], err = genSubtree(treeRoster, 1)
+		trees[i], err = GenSubtree(treeRoster, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -81,16 +81,19 @@ func GenTrees(roster *onet.Roster, nNodes, nSubtrees int) ([]*onet.Tree, error) 
 	return trees, nil
 }
 
-// genSubtree generates a single subtree with a given subleaderID.
+// GenSubtree generates a single subtree with a given subleaderID.
 // The generated tree will have a root with one child (the subleader)
 // and all other nodes in the roster will be the subleader children.
-func genSubtree(roster *onet.Roster, subleaderID int) (*onet.Tree, error) {
+func GenSubtree(roster *onet.Roster, subleaderID int) (*onet.Tree, error) {
 
+	if roster == nil {
+		return nil, fmt.Errorf("the roster should not be nil, but is")
+	}
 	if len(roster.List) < 2 {
-		return nil, fmt.Errorf("the roster size must be greater than 1, but is %s", len(roster.List))
-
-	} else if subleaderID < 1 || subleaderID >= len(roster.List) {
-		return nil, fmt.Errorf("the subleader id should be between in range [1, %s] (size of roster), but is %s", len(roster.List)-1, subleaderID)
+		return nil, fmt.Errorf("the roster size must be greater than 1, but is %d", len(roster.List))
+	}
+	if subleaderID < 1 || subleaderID >= len(roster.List) {
+		return nil, fmt.Errorf("the subleader id should be between in range [1, %d] (size of roster), but is %d", len(roster.List)-1, subleaderID)
 	}
 
 	//generate leader and subleader

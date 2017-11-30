@@ -105,7 +105,7 @@ func (p *CosiRootNode) Dispatch() error {
 				if newSubleaderID >= len(trees[i].Roster.List) {
 					newSubleaderID = 1
 				}
-				trees[i], err = genSubtree(trees[i].Roster, newSubleaderID)
+				trees[i], err = GenSubtree(trees[i].Roster, newSubleaderID)
 				if err != nil {
 					return err
 				}
