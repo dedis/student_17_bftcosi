@@ -126,7 +126,7 @@ func (p *CosiRootNode) Dispatch() error {
 
 	//generate challenge
 	log.Lvl3("root-node generating global challenge")
-	secret, commitment, mask, err := generatePersonnalCommitment(p.TreeNodeInstance, p.Publics, commitments)
+	secret, commitment, mask, err := generatePersonalCommitment(p.TreeNodeInstance, p.Publics, commitments)
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,8 @@ func (p *CosiRootNode) startSubProtocol (tree *onet.Tree) (*CosiSubProtocolNode,
 	cosiProtocol := pi.(*CosiSubProtocolNode)
 	cosiProtocol.Publics = p.Publics
 	cosiProtocol.Proposal = p.Proposal
-	cosiProtocol.SubleaderTimeout = time.Duration(float64(p.ProtocolTimeout) * subleaderTimeoutProportion)
+	cosiProtocol.SubleaderTimeout = time.Duration(float64(p.ProtocolTimeout) * DefaultSubleaderTimeoutProportion)
+	cosiProtocol.LeafTimeout = time.Duration(float64(p.ProtocolTimeout) * DefaultLeafTimeoutProportion)
 
 	err = cosiProtocol.Start()
 	if err != nil {

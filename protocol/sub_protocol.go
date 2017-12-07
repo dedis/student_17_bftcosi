@@ -16,8 +16,9 @@ type CosiSubProtocolNode struct {
 	*onet.TreeNodeInstance
 	Publics					[]abstract.Point
 	Proposal				[]byte
-	SubleaderTimeout		time.Duration //only defined for the root
-	hasStopped				bool //used since Shutdown can be called multiple time //TODO: check that necessary
+	SubleaderTimeout		time.Duration
+	LeafTimeout				time.Duration
+	hasStopped				bool //used since Shutdown can be called multiple time //TODO: wait on submitted issue
 
 	//protocol/subprotocol channels
 	subleaderNotResponding chan bool
@@ -26,7 +27,7 @@ type CosiSubProtocolNode struct {
 
 	//internodes channels
 	ChannelAnnouncement    chan StructAnnouncement
-	ChannelCommitment      chan []StructCommitment
+	ChannelCommitment      chan StructCommitment
 	ChannelChallenge       chan StructChallenge
 	ChannelResponse        chan []StructResponse
 }
@@ -80,25 +81,34 @@ func (p *CosiSubProtocolNode) Dispatch() error {
 	}
 	log.Lvl3(p.ServerIdentity().Address, "received announcement")
 	p.Publics = announcement.Publics
+	p.SubleaderTimeout = announcement.SubleaderTimeout
+	p.LeafTimeout = announcement.LeafTimeout
+
 	err := p.SendToChildren(&announcement.Announcement)
 	if err != nil {
 		return err
 	}
 
 	// ----- Commitment -----
-	if p.IsLeaf() {
-		p.ChannelCommitment <- make([]StructCommitment, 0)
-	}
 	commitments := make([]StructCommitment, 0)
 	if p.IsRoot() {
 		select {
-		case commitments = <-p.ChannelCommitment:
+		case commitment:= <-p.ChannelCommitment:
+			commitments = append(commitments, commitment)
 		case <-time.After(p.SubleaderTimeout):
 			p.subleaderNotResponding <- true
 			return nil
 		}
-	} else {
-		commitments = <-p.ChannelCommitment
+	} else { //TODO: test
+		t := time.After(p.LeafTimeout)
+		for i:=0 ; i<len(p.Children()) ; i++ {
+			select {
+			case commitment := <-p.ChannelCommitment:
+				commitments = append(commitments, commitment)
+			case <-t:
+				break
+			}
+		}
 	}
 	log.Lvl3(p.ServerIdentity().Address, "received commitment")
 
@@ -116,7 +126,7 @@ func (p *CosiSubProtocolNode) Dispatch() error {
 	} else {
 		var commitment abstract.Point
 		var mask *cosi.Mask
-		secret, commitment, mask, err = generatePersonnalCommitment(p.TreeNodeInstance, p.Publics, commitments)
+		secret, commitment, mask, err = generatePersonalCommitment(p.TreeNodeInstance, p.Publics, commitments)
 		if err != nil {
 			return err
 		}
@@ -184,11 +194,17 @@ func (p *CosiSubProtocolNode) Start() error {
 		return fmt.Errorf("subprotocol started without any proposal set")
 	} else if p.Publics == nil || len(p.Publics) < 1 {
 		return fmt.Errorf("subprotocol started with an invlid public key list")
-	} else if p.SubleaderTimeout < 1 {
-		p.SubleaderTimeout = time.Duration(float64(DefaultProtocolTimeout) * subleaderTimeoutProportion)
 	}
+	if p.SubleaderTimeout < 1 {
+		p.SubleaderTimeout = time.Duration(float64(DefaultProtocolTimeout) * DefaultSubleaderTimeoutProportion)
+	}
+	if p.LeafTimeout < 1 {
+		p.LeafTimeout = time.Duration(float64(DefaultProtocolTimeout) * DefaultLeafTimeoutProportion)
+	}
+
 	announcement := StructAnnouncement{p.TreeNode(),
-		Announcement{p.Proposal, p.Publics}}
+		Announcement{p.Proposal, p.Publics,
+		p.SubleaderTimeout, p.LeafTimeout}}
 	p.ChannelAnnouncement <- announcement
 	return nil
 }

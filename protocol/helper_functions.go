@@ -7,9 +7,9 @@ import (
 	"gopkg.in/dedis/onet.v1/log"
 )
 
-// generatePersonnalCommitment generates a personal secret and commitment
+// generatePersonalCommitment generates a personal secret and commitment
 // and returns respectively the secret, an aggregated commitment and an aggregated mask
-func generatePersonnalCommitment(t *onet.TreeNodeInstance, publics []abstract.Point, structCommitments []StructCommitment) (abstract.Scalar, abstract.Point, *cosi.Mask, error) {
+func generatePersonalCommitment(t *onet.TreeNodeInstance, publics []abstract.Point, structCommitments []StructCommitment) (abstract.Scalar, abstract.Point, *cosi.Mask, error) {
 
 	//extract lists of commitments and masks
 	var commitments []abstract.Point

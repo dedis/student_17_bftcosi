@@ -19,11 +19,14 @@ const ProtocolName = "CoSi"
 const subProtocolName = "SubCoSi"
 
 const DefaultProtocolTimeout = network.WaitRetry * time.Duration(network.MaxRetryConnect*2) * time.Millisecond
-const subleaderTimeoutProportion = 0.01
+const DefaultSubleaderTimeoutProportion = 0.01
+const DefaultLeafTimeoutProportion = 0.001
 
 type Announcement struct {
-	 Proposal	[]byte
-	 Publics	[]abstract.Point
+	 Proposal			[]byte
+	 Publics			[]abstract.Point
+	 SubleaderTimeout	time.Duration
+	 LeafTimeout		time.Duration
 }
 
 // StructAnnouncement just contains Announcement and the data necessary to identify and

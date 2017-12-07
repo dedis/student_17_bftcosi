@@ -65,8 +65,8 @@ func TestUnresponsiveSubleader(t *testing.T) {
 	//log.SetDebugVisible(3)
 
 	local := onet.NewLocalTest()
-	nodes := []int{3, 5, 13, 24}
-	subtrees := []int{1, 2, 5}
+	nodes := []int{5, 13, 24}
+	subtrees := []int{1, 2}
 	proposal := []byte{0xFF}
 
 	for _, nNodes := range nodes {
@@ -93,31 +93,14 @@ func TestUnresponsiveSubleader(t *testing.T) {
 			cosiProtocol.ProtocolTimeout = protocol.DefaultProtocolTimeout / 10000
 
 			//setup announcement interception
-			AnnouncementDropped := false
 			subleaderServer := servers[1]
 			subleaderServer.RegisterProcessorFunc(onet.ProtocolMsgID, func(e *network.Envelope) {
-
-				//get message
-				protoMsg := e.Msg.(*onet.ProtocolMsg)
-				_, msg, err := network.Unmarshal(protoMsg.MsgSlice)
-				if err != nil {
-					t.Fatal("error while unmarshaling a message:", err)
-				}
-
-				//ignore the first announcement
-				switch msg.(type) { //TODO: ask for whether or not we can compare protoMsg.From with server[0] id
-				case *protocol.Announcement:
-					if AnnouncementDropped {
-						local.Overlays[subleaderServer.ServerIdentity.ID].Process(e)
-					} else {
-						log.Lvl2("Dropped first announcement")
-						AnnouncementDropped = true
-					}
-				default:
+				if e.ServerIdentity.ID == tree.Root.ServerIdentity.ID {
+					log.Lvl2("Dropped message from root")
+				} else {
 					local.Overlays[subleaderServer.ServerIdentity.ID].Process(e)
 				}
 			})
-
 
 			err = cosiProtocol.Start()
 			if err != nil {
