@@ -3,7 +3,11 @@ Servers = 8
 Bf = 4
 Rounds = 10
 CloseWait = 6000
+Bandwidth = 10 # Mb/s, only in mininet
+Delay = 50 # ms, only in mininet
 
 Hosts, NSubtrees
 5, 1
 5, 2
+100, 3
+1000, 25

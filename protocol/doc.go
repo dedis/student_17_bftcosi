@@ -1,5 +1,5 @@
 /*
-Package protocol contains an implementation of the Cosi protocol as described in the paper
+Package protocol contains an implementation of the CoSi protocol as described in the paper
 "Keeping Authorities "Honest or Bust" with Decentralized Witness Cosigning"
 
 The protocol has four messages:

@@ -11,11 +11,12 @@ import (
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"time"
 	"fmt"
+	"reflect"
 )
 
 // Tests various trees configurations
 func TestProtocol(t *testing.T) {
-	//log.SetDebugVisible(3)
+	log.SetDebugVisible(3)
 
 	local := onet.NewLocalTest()
 	nodes := []int{1, 2, 5, 13, 24}
@@ -38,20 +39,23 @@ func TestProtocol(t *testing.T) {
 			//start protocol
 			pi, err := local.CreateProtocol(protocol.ProtocolName, tree)
 			if err != nil {
+				local.CloseAll()
 				t.Fatal("Error in creation of protocol:", err)
 			}
-			cosiProtocol := pi.(*protocol.CosiRootNode)
+			cosiProtocol := pi.(*protocol.CoSiRootNode)
 			cosiProtocol.CreateProtocol = local.CreateProtocol
 			cosiProtocol.Proposal = proposal
 			cosiProtocol.NSubtrees = nSubtrees
 			err = cosiProtocol.Start()
 			if err != nil {
+				local.CloseAll()
 				t.Fatal("Error in starting of protocol:", err)
 			}
 
 			//get and verify signature
-			err = getAndVerifySignature(cosiProtocol, publics, proposal)
+			err = getAndVerifySignature(cosiProtocol, publics, proposal, cosi.CompletePolicy{})
 			if err != nil {
+				local.CloseAll()
 				t.Fatal(err)
 			}
 
@@ -60,12 +64,12 @@ func TestProtocol(t *testing.T) {
 	}
 }
 
-// Tests unresponsive subleaders in various tree configurations
-func TestUnresponsiveSubleader(t *testing.T) {
-	//log.SetDebugVisible(3)
+// Tests unresponsive leaves in various tree configurations
+func TestUnresponsiveLeaves(t *testing.T) {
+	log.SetDebugVisible(4)
 
 	local := onet.NewLocalTest()
-	nodes := []int{5, 13, 24}
+	nodes := []int{3, 13, 24}
 	subtrees := []int{1, 2}
 	proposal := []byte{0xFF}
 
@@ -81,35 +85,135 @@ func TestUnresponsiveSubleader(t *testing.T) {
 				publics[i] = node.ServerIdentity.Public
 			}
 
-			//start protocol
+			//create protocol
 			pi, err := local.CreateProtocol(protocol.ProtocolName, tree)
 			if err != nil {
+				local.CloseAll()
 				t.Fatal("Error in creation of protocol:", err)
 			}
-			cosiProtocol := pi.(*protocol.CosiRootNode)
+			cosiProtocol := pi.(*protocol.CoSiRootNode)
 			cosiProtocol.CreateProtocol = local.CreateProtocol
 			cosiProtocol.Proposal = proposal
 			cosiProtocol.NSubtrees = nSubtrees
-			cosiProtocol.ProtocolTimeout = protocol.DefaultProtocolTimeout / 10000
+			cosiProtocol.LeavesTimeout = protocol.DefaultLeavesTimeout / 500
 
-			//setup announcement interception
-			subleaderServer := servers[1]
-			subleaderServer.RegisterProcessorFunc(onet.ProtocolMsgID, func(e *network.Envelope) {
-				if e.ServerIdentity.ID == tree.Root.ServerIdentity.ID {
-					log.Lvl2("Dropped message from root")
-				} else {
-					local.Overlays[subleaderServer.ServerIdentity.ID].Process(e)
+			//find first subtree leaves servers based on GenTree function
+			exampleTree, err := protocol.GenTrees(tree.Roster, nNodes, nSubtrees)
+			if err != nil {
+				local.CloseAll()
+				t.Fatal("Error in creation of example tree:", err)
+			}
+			leavesServerIdentities := exampleTree[0].Root.Children[0].Children
+			firstLeavesServers := make([]*onet.Server, 0)
+			for _, s := range servers {
+				for _, l := range leavesServerIdentities {
+					if s.ServerIdentity.ID == l.ServerIdentity.ID {
+						firstLeavesServers = append(firstLeavesServers, s)
+						break
+					}
 				}
-			})
+			}
 
+			//setup message interception on all first subtree leaves
+			for _, l := range firstLeavesServers {
+				l.RegisterProcessorFunc(onet.ProtocolMsgID, func(e *network.Envelope) {
+					log.Lvl2("Dropped message")
+				})
+			}
+
+			//start protocol
 			err = cosiProtocol.Start()
 			if err != nil {
+				local.CloseAll()
 				t.Fatal("Error in starting of protocol:", err)
 			}
 
 			//get and verify signature
-			err = getAndVerifySignature(cosiProtocol, publics, proposal)
+			threshold := nNodes - len(exampleTree[0].Root.Children[0].Children)
+			err = getAndVerifySignature(cosiProtocol, publics, proposal, cosi.ThresholdPolicy{T:threshold})
 			if err != nil {
+				local.CloseAll()
+				t.Fatal(err)
+			}
+
+			local.CloseAll()
+		}
+	}
+}
+
+// Tests unresponsive subleaders in various tree configurations
+func TestUnresponsiveSubleader(t *testing.T) {
+	//log.SetDebugVisible(3)
+
+	local := onet.NewLocalTest()
+	nodes := []int{6, 13, 24}
+	subtrees := []int{1, 2}
+	proposal := []byte{0xFF}
+
+	for _, nNodes := range nodes {
+		for _, nSubtrees := range subtrees {
+			log.Lvl2("test asking for",nNodes, "nodes and", nSubtrees, "subtrees")
+
+			servers, _, tree := local.GenTree(nNodes, false)
+
+			//get public keys
+			publics := make([]abstract.Point, tree.Size())
+			for i, node := range tree.List() {
+				publics[i] = node.ServerIdentity.Public
+			}
+
+			//create protocol
+			pi, err := local.CreateProtocol(protocol.ProtocolName, tree)
+			if err != nil {
+				local.CloseAll()
+				t.Fatal("Error in creation of protocol:", err)
+			}
+			cosiProtocol := pi.(*protocol.CoSiRootNode)
+			cosiProtocol.CreateProtocol = local.CreateProtocol
+			cosiProtocol.Proposal = proposal
+			cosiProtocol.NSubtrees = nSubtrees
+			cosiProtocol.SubleaderTimeout = protocol.DefaultSubleaderTimeout / 5000
+
+			//find first subleader server based on genTree function
+			exampleTree, err := protocol.GenTrees(tree.Roster, nNodes, nSubtrees)
+			if err != nil {
+				local.CloseAll()
+				t.Fatal("Error in creation of example tree:", err)
+			}
+			subleaderServerIdentity := exampleTree[0].Root.Children[0].ServerIdentity
+			var firstSubleaderServer *onet.Server
+			for _, s := range servers {
+				if s.ServerIdentity.ID == subleaderServerIdentity.ID {
+					firstSubleaderServer = s
+					break
+				}
+			}
+
+			//setup message interception on first subleader
+			firstSubleaderServer.RegisterProcessorFunc(onet.ProtocolMsgID, func(e *network.Envelope) {
+				if e.ServerIdentity.ID == exampleTree[0].Root.ServerIdentity.ID {
+					_, msg, err := network.Unmarshal(e.Msg.(*onet.ProtocolMsg).MsgSlice)
+					if err != nil {
+						local.CloseAll()
+						t.Fatal("error while unmarshelling message", err)
+					}
+					log.Lvl2(firstSubleaderServer.Address(), "Dropped message from root of type:", reflect.TypeOf(msg))
+				} else {
+					local.Overlays[firstSubleaderServer.ServerIdentity.ID].Process(e)
+				}
+			})
+
+			//start protocol
+			err = cosiProtocol.Start()
+			if err != nil {
+				local.CloseAll()
+				t.Fatal("Error in starting of protocol:", err)
+			}
+
+			//get and verify signature
+			err = getAndVerifySignature(cosiProtocol, publics, proposal, cosi.CompletePolicy{})
+			if err != nil {
+				local.CloseAll()
 				t.Fatal(err)
 			}
 
@@ -119,7 +223,8 @@ func TestUnresponsiveSubleader(t *testing.T) {
 }
 
 // Tests that the protocol throws errors with invalid configurations
-func TestProtocolErrors(t *testing.T) { //TODO: implement protocol interruption
+//TODO: implement protocol interruption
+func TestProtocolErrors(t *testing.T) {
 	//log.SetDebugVisible(3)
 
 	local := onet.NewLocalTest()
@@ -136,28 +241,32 @@ func TestProtocolErrors(t *testing.T) { //TODO: implement protocol interruption
 			//missing create protocol function
 			pi, err := local.CreateProtocol(protocol.ProtocolName, tree)
 			if err != nil {
+				local.CloseAll()
 				t.Fatal("Error in creation of protocol:", err)
 			}
-			cosiProtocol := pi.(*protocol.CosiRootNode)
+			cosiProtocol := pi.(*protocol.CoSiRootNode)
 			//cosiProtocol.CreateProtocol = local.CreateProtocol
 			cosiProtocol.Proposal = proposal
 			cosiProtocol.NSubtrees = nSubtrees
 			err = cosiProtocol.Start()
 			if err == nil {
+				local.CloseAll()
 				t.Fatal("protocol should throw an error if called without create protocol function, but doesn't")
 			}
 
 			//missing proposal
 			pi, err = local.CreateProtocol(protocol.ProtocolName, tree)
 			if err != nil {
+				local.CloseAll()
 				t.Fatal("Error in creation of protocol:", err)
 			}
-			cosiProtocol = pi.(*protocol.CosiRootNode)
+			cosiProtocol = pi.(*protocol.CoSiRootNode)
 			cosiProtocol.CreateProtocol = local.CreateProtocol
 			//cosiProtocol.Proposal = proposal
 			cosiProtocol.NSubtrees = nSubtrees
 			err = cosiProtocol.Start()
 			if err == nil {
+				local.CloseAll()
 				t.Fatal("protocol should throw an error if called without a proposal, but doesn't")
 			}
 
@@ -166,7 +275,8 @@ func TestProtocolErrors(t *testing.T) { //TODO: implement protocol interruption
 	}
 }
 
-func getAndVerifySignature(cosiProtocol *protocol.CosiRootNode, publics []abstract.Point, proposal []byte) error {
+func getAndVerifySignature(cosiProtocol *protocol.CoSiRootNode, publics []abstract.Point,
+	proposal []byte, policy cosi.Policy) error {
 
 	//get response
 	var signature []byte
@@ -178,7 +288,7 @@ func getAndVerifySignature(cosiProtocol *protocol.CosiRootNode, publics []abstra
 	}
 
 	//verify signature
-	err := cosi.Verify(network.Suite, publics, proposal, signature, cosi.CompletePolicy{})
+	err := cosi.Verify(network.Suite, publics, proposal, signature, policy)
 	if err != nil {
 		return fmt.Errorf("didn't get a valid signature: %s", err)
 	}

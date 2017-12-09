@@ -19,8 +19,8 @@ const ProtocolName = "CoSi"
 const subProtocolName = "SubCoSi"
 
 const DefaultProtocolTimeout = network.WaitRetry * time.Duration(network.MaxRetryConnect*2) * time.Millisecond
-const DefaultSubleaderTimeoutProportion = 0.01
-const DefaultLeafTimeoutProportion = 0.001
+const DefaultSubleaderTimeout = time.Duration(float64(DefaultProtocolTimeout) * 0.01)
+const DefaultLeavesTimeout = time.Duration(float64(DefaultProtocolTimeout) * 0.005)
 
 type Announcement struct {
 	 Proposal			[]byte
@@ -37,8 +37,8 @@ type StructAnnouncement struct {
 }
 
 type Commitment struct {
-	CosiCommitment abstract.Point
-	Mask       []byte
+	CoSiCommitment abstract.Point
+	Mask           []byte
 }
 
 // StructCommitment just contains Commitment and the data necessary to identify and
@@ -49,7 +49,7 @@ type StructCommitment struct {
 }
 
 type Challenge struct {
-	CosiChallenge abstract.Scalar
+	CoSiChallenge abstract.Scalar
 }
 
 // StructChallenge just contains Challenge and the data necessary to identify and
@@ -60,7 +60,7 @@ type StructChallenge struct {
 }
 
 type Response struct {
-	CosiReponse abstract.Scalar
+	CoSiReponse abstract.Scalar
 }
 
 // StructResponse just contains Response and the data necessary to identify and

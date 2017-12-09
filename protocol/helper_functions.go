@@ -5,17 +5,26 @@ import (
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
+	"fmt"
 )
 
 // generatePersonalCommitment generates a personal secret and commitment
 // and returns respectively the secret, an aggregated commitment and an aggregated mask
 func generatePersonalCommitment(t *onet.TreeNodeInstance, publics []abstract.Point, structCommitments []StructCommitment) (abstract.Scalar, abstract.Point, *cosi.Mask, error) {
 
+	if t == nil {
+		return nil, nil, nil, fmt.Errorf("TreeNodeInstance should not be nil, but is")
+	} else if publics == nil {
+		return nil, nil, nil, fmt.Errorf("publics should not be nil, but is")
+	} else if structCommitments == nil {
+		return nil, nil, nil, fmt.Errorf("structCommitments should not be nil, but is")
+	}
+
 	//extract lists of commitments and masks
 	var commitments []abstract.Point
 	var masks [][]byte
 	for _, c := range structCommitments {
-		commitments = append(commitments, c.CosiCommitment)
+		commitments = append(commitments, c.CoSiCommitment)
 		masks = append(masks, c.Mask)
 	}
 
@@ -42,7 +51,10 @@ func generatePersonalCommitment(t *onet.TreeNodeInstance, publics []abstract.Poi
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	finalMask.SetMask(aggMask)
+	err = finalMask.SetMask(aggMask)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	return secret, aggCommitment, finalMask, nil
 }
@@ -51,10 +63,20 @@ func generatePersonalCommitment(t *onet.TreeNodeInstance, publics []abstract.Poi
 // and returns the aggregated response of all children and the node
 func generateResponse(t *onet.TreeNodeInstance, structResponse []StructResponse, secret abstract.Scalar, challenge abstract.Scalar) (abstract.Scalar, error) {
 
+	if t == nil {
+		return nil, fmt.Errorf("TreeNodeInstance should not be nil, but is")
+	} else if structResponse == nil {
+		return nil, fmt.Errorf("StructResponse should not be nil, but is")
+	} else if secret == nil {
+		return nil, fmt.Errorf("secret should not be nil, but is")
+	} else if challenge == nil {
+		return nil, fmt.Errorf("challenge should not be nil, but is")
+	}
+
 	//extract lists of responses
 	var responses []abstract.Scalar
 	for _, c := range structResponse {
-		responses = append(responses, c.CosiReponse)
+		responses = append(responses, c.CoSiReponse)
 	}
 
 	//generate personal response

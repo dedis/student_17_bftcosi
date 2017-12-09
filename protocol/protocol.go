@@ -19,9 +19,9 @@ func init() {
 	onet.GlobalProtocolRegister(ProtocolName, NewProtocol)
 	onet.GlobalProtocolRegister(subProtocolName, NewSubProtocol)
 }
-// CosiRootNode holds the parameters of the protocol.
+// CoSiRootNode holds the parameters of the protocol.
 // It also defines a channel that will receive the final signature.
-type CosiRootNode struct {
+type CoSiRootNode struct {
 	*onet.TreeNodeInstance
 	Publics					[]abstract.Point
 
@@ -29,6 +29,8 @@ type CosiRootNode struct {
 	Proposal       			[]byte
 	CreateProtocol 			CreateProtocolFunction
 	ProtocolTimeout			time.Duration
+	SubleaderTimeout		time.Duration
+	LeavesTimeout			time.Duration
 
 	start					chan bool
 	FinalSignature			chan []byte
@@ -44,7 +46,7 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 		list = append(list, t.ServerIdentity.Public)
 	}
 
-	c := &CosiRootNode{
+	c := &CoSiRootNode{
 		TreeNodeInstance:       n,
 		Publics:				list,
 		start: 					make(chan bool),
@@ -56,7 +58,7 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 
 //Dispatch() is the main method of the protocol, defining the root node behaviour
 // and sequential handling of subprotocols.
-func (p *CosiRootNode) Dispatch() error {
+func (p *CoSiRootNode) Dispatch() error {
 
 	if !p.IsRoot() {
 		return nil
@@ -78,9 +80,9 @@ func (p *CosiRootNode) Dispatch() error {
 	<- p.start
 
 	//start all subprotocols
-	cosiProtocols := make([]*CosiSubProtocolNode, len(trees))
+	coSiProtocols := make([]*CoSiSubProtocolNode, len(trees))
 	for i, tree := range trees {
-		cosiProtocols[i], err = p.startSubProtocol(tree)
+		coSiProtocols[i], err = p.startSubProtocol(tree)
 		if err != nil {
 			return err
 		}
@@ -89,9 +91,9 @@ func (p *CosiRootNode) Dispatch() error {
 
 	//get all commitments, restart subprotocols where subleaders do not respond
 	commitments := make([]StructCommitment, len(trees))
-	for i, cosiProtocol := range cosiProtocols {
-		protocol := cosiProtocol
-		for commitments[i].CosiCommitment == nil {
+	for i:=0 ; i<len(coSiProtocols) ; i++ {
+		protocol := coSiProtocols[i]
+		for commitments[i].CoSiCommitment == nil {
 			select {
 			case _ = <-protocol.subleaderNotResponding:
 				log.Lvlf2("subleader from tree %d failed, restarting it", i)
@@ -115,7 +117,7 @@ func (p *CosiRootNode) Dispatch() error {
 				if err != nil {
 					return fmt.Errorf("error in restarting of protocol: %s", err)
 				}
-				cosiProtocols[i] = protocol
+				coSiProtocols[i] = protocol
 			case commitment := <-protocol.subCommitment:
 				commitments[i] = commitment
 			case <-time.After(p.ProtocolTimeout):
@@ -130,24 +132,24 @@ func (p *CosiRootNode) Dispatch() error {
 	if err != nil {
 		return err
 	}
-	cosiChallenge, err := cosi.Challenge(network.Suite, commitment,
+	coSiChallenge, err := cosi.Challenge(network.Suite, commitment,
 		p.Root().PublicAggregateSubTree, p.Proposal)
 	if err != nil {
 		return err
 	}
-	structChallenge := StructChallenge{p.TreeNode(), Challenge{cosiChallenge}}
+	structChallenge := StructChallenge{p.TreeNode(), Challenge{coSiChallenge}}
 
 	//send challenge to every subprotocol
-	for _, cosiProtocol := range cosiProtocols {
-		protocol := cosiProtocol
+	for _, coSiProtocol := range coSiProtocols {
+		protocol := coSiProtocol
 		protocol.ChannelChallenge <- structChallenge
 	}
 
 	//get response from all subprotocols
 	responses := make([]StructResponse, len(trees))
-	for i, cosiProtocol := range cosiProtocols {
+	for i, cosiProtocol := range coSiProtocols {
 		protocol := cosiProtocol
-		for responses[i].CosiReponse == nil {
+		for responses[i].CoSiReponse == nil {
 			select {
 			case response := <-protocol.subResponse:
 				responses[i] = response
@@ -158,7 +160,7 @@ func (p *CosiRootNode) Dispatch() error {
 	}
 
 	//signs the proposal
-	 response, err := generateResponse(p.TreeNodeInstance, responses, secret, cosiChallenge)
+	 response, err := generateResponse(p.TreeNodeInstance, responses, secret, coSiChallenge)
 	if err != nil {
 		return err
 	}
@@ -176,40 +178,48 @@ func (p *CosiRootNode) Dispatch() error {
 
 // Start is done only by root and starts the protocol.
 // It also verifies that the protocol has been correctly parameterized.
-func (p *CosiRootNode) Start() error {
+func (p *CoSiRootNode) Start() error {
 	if p.Proposal == nil {
 		return fmt.Errorf("no proposal specified")
 	} else if p.CreateProtocol == nil {
 		return fmt.Errorf("no create protocol function specified")
 	} else if p.NSubtrees < 1 {
 		p.NSubtrees = 1
-	} else if p.ProtocolTimeout < 10 {
+	}
+	if p.ProtocolTimeout < 10 {
 		p.ProtocolTimeout = DefaultProtocolTimeout
 	}
-	log.Lvl3("Starting Cosi")
+	if p.SubleaderTimeout < 10 {
+		p.SubleaderTimeout = DefaultSubleaderTimeout
+	}
+	if p.LeavesTimeout < 10 {
+		p.LeavesTimeout = DefaultLeavesTimeout
+	}
+
+	log.Lvl3("Starting CoSi")
 	p.start <- true
 	return nil
 }
 
 // startSubProtocol creates, parametrize and starts a subprotocol on a given tree
 // and returns the started protocol.
-func (p *CosiRootNode) startSubProtocol (tree *onet.Tree) (*CosiSubProtocolNode, error) {
+func (p *CoSiRootNode) startSubProtocol (tree *onet.Tree) (*CoSiSubProtocolNode, error) {
 
 	pi, err := p.CreateProtocol(subProtocolName, tree)
 	if err != nil {
 		return nil, err
 	}
 
-	cosiProtocol := pi.(*CosiSubProtocolNode)
-	cosiProtocol.Publics = p.Publics
-	cosiProtocol.Proposal = p.Proposal
-	cosiProtocol.SubleaderTimeout = time.Duration(float64(p.ProtocolTimeout) * DefaultSubleaderTimeoutProportion)
-	cosiProtocol.LeafTimeout = time.Duration(float64(p.ProtocolTimeout) * DefaultLeafTimeoutProportion)
+	coSiProtocol := pi.(*CoSiSubProtocolNode)
+	coSiProtocol.Publics = p.Publics
+	coSiProtocol.Proposal = p.Proposal
+	coSiProtocol.SubleaderTimeout = p.SubleaderTimeout
+	coSiProtocol.LeavesTimeout = p.LeavesTimeout
 
-	err = cosiProtocol.Start()
+	err = coSiProtocol.Start()
 	if err != nil {
 		return nil, err
 	}
 
-	return cosiProtocol, err
+	return coSiProtocol, err
 }

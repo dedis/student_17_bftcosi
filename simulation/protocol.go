@@ -32,6 +32,7 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 	"github.com/dedis/student_17_bftcosi/cosi"
 	"fmt"
+	"time"
 )
 
 func init() {
@@ -94,12 +95,13 @@ func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
 		if err != nil {
 			return err
 		}
-		proto := p.(*protocol.CosiRootNode)
+		proto := p.(*protocol.CoSiRootNode)
 		proto.NSubtrees = s.NSubtrees
 		proto.Proposal = proposal
 		proto.CreateProtocol = func(name string, t *onet.Tree) (onet.ProtocolInstance, error) {
 			return config.Overlay.CreateProtocol(name, t, onet.NilServiceID)
 		}
+		proto.ProtocolTimeout = 10* time.Second
 		go func() {
 			log.ErrFatal(p.Start())
 		}()

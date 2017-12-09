@@ -394,11 +394,11 @@ func (p CompletePolicy) Check(m *Mask) bool {
 // least the given threshold number of participants t have cosigned to make a
 // collective signature valid.
 type ThresholdPolicy struct {
-	t int
+	T int
 }
 
 // Check verifies that at least a threshold number of participants have
 // contributed to a collective signature.
 func (p ThresholdPolicy) Check(m *Mask) bool {
-	return m.CountEnabled() >= p.t
+	return m.CountEnabled() >= p.T
 }
