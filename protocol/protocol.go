@@ -31,6 +31,7 @@ type CoSiRootNode struct {
 	ProtocolTimeout			time.Duration
 	SubleaderTimeout		time.Duration
 	LeavesTimeout			time.Duration
+	hasStopped       		bool //used since Shutdown can be called multiple time
 
 	start					chan bool
 	FinalSignature			chan []byte
@@ -49,11 +50,21 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	c := &CoSiRootNode{
 		TreeNodeInstance:       n,
 		Publics:				list,
+		hasStopped:				false,
 		start: 					make(chan bool),
 		FinalSignature:			make(chan []byte),
 	}
 
 	return c, nil
+}
+
+
+func (p *CoSiRootNode) Shutdown() error {
+	if !p.hasStopped {
+		close(p.start)
+		p.hasStopped = true
+	}
+	return nil
 }
 
 //Dispatch() is the main method of the protocol, defining the root node behaviour
@@ -77,7 +88,10 @@ func (p *CoSiRootNode) Dispatch() error {
 	}
 
 	//wait for start signal
-	<- p.start
+	_, channelOpen := <- p.start
+	if !channelOpen {
+		return nil
+	}
 
 	//start all subprotocols
 	coSiProtocols := make([]*CoSiSubProtocolNode, len(trees))

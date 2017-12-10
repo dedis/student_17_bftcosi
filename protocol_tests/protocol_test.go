@@ -222,7 +222,6 @@ func TestUnresponsiveSubleader(t *testing.T) {
 }
 
 // Tests that the protocol throws errors with invalid configurations
-//TODO: implement protocol interruption
 func TestProtocolErrors(t *testing.T) {
 	//log.SetDebugVisible(3)
 
