@@ -16,7 +16,7 @@ import (
 
 // Tests various trees configurations
 func TestProtocol(t *testing.T) {
-	log.SetDebugVisible(3)
+	//log.SetDebugVisible(3)
 
 	local := onet.NewLocalTest()
 	nodes := []int{1, 2, 5, 13, 24}
@@ -34,7 +34,6 @@ func TestProtocol(t *testing.T) {
 			for i, node := range tree.List() {
 				publics[i] = node.ServerIdentity.Public
 			}
-
 
 			//start protocol
 			pi, err := local.CreateProtocol(protocol.ProtocolName, tree)
@@ -66,7 +65,7 @@ func TestProtocol(t *testing.T) {
 
 // Tests unresponsive leaves in various tree configurations
 func TestUnresponsiveLeaves(t *testing.T) {
-	log.SetDebugVisible(4)
+	//log.SetDebugVisible(3)
 
 	local := onet.NewLocalTest()
 	nodes := []int{3, 13, 24}
@@ -95,7 +94,7 @@ func TestUnresponsiveLeaves(t *testing.T) {
 			cosiProtocol.CreateProtocol = local.CreateProtocol
 			cosiProtocol.Proposal = proposal
 			cosiProtocol.NSubtrees = nSubtrees
-			cosiProtocol.LeavesTimeout = protocol.DefaultLeavesTimeout / 500
+			cosiProtocol.LeavesTimeout = protocol.DefaultLeavesTimeout / 5000
 
 			//find first subtree leaves servers based on GenTree function
 			exampleTree, err := protocol.GenTrees(tree.Roster, nNodes, nSubtrees)
@@ -117,7 +116,7 @@ func TestUnresponsiveLeaves(t *testing.T) {
 			//setup message interception on all first subtree leaves
 			for _, l := range firstLeavesServers {
 				l.RegisterProcessorFunc(onet.ProtocolMsgID, func(e *network.Envelope) {
-					log.Lvl2("Dropped message")
+					log.Lvl3("Dropped message")
 				})
 			}
 
@@ -172,7 +171,7 @@ func TestUnresponsiveSubleader(t *testing.T) {
 			cosiProtocol.CreateProtocol = local.CreateProtocol
 			cosiProtocol.Proposal = proposal
 			cosiProtocol.NSubtrees = nSubtrees
-			cosiProtocol.SubleaderTimeout = protocol.DefaultSubleaderTimeout / 5000
+			cosiProtocol.SubleaderTimeout = protocol.DefaultSubleaderTimeout / 7000
 
 			//find first subleader server based on genTree function
 			exampleTree, err := protocol.GenTrees(tree.Roster, nNodes, nSubtrees)

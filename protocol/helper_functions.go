@@ -8,9 +8,9 @@ import (
 	"fmt"
 )
 
-// generatePersonalCommitment generates a personal secret and commitment
+// generateCommitmentAndAggregate generates a personal secret and commitment
 // and returns respectively the secret, an aggregated commitment and an aggregated mask
-func generatePersonalCommitment(t *onet.TreeNodeInstance, publics []abstract.Point, structCommitments []StructCommitment) (abstract.Scalar, abstract.Point, *cosi.Mask, error) {
+func generateCommitmentAndAggregate(t *onet.TreeNodeInstance, publics []abstract.Point, structCommitments []StructCommitment) (abstract.Scalar, abstract.Point, *cosi.Mask, error) {
 
 	if t == nil {
 		return nil, nil, nil, fmt.Errorf("TreeNodeInstance should not be nil, but is")

@@ -128,12 +128,12 @@ func (p *CoSiRootNode) Dispatch() error {
 
 	//generate challenge
 	log.Lvl3("root-node generating global challenge")
-	secret, commitment, mask, err := generatePersonalCommitment(p.TreeNodeInstance, p.Publics, commitments)
+	secret, commitment, finalMask, err := generateCommitmentAndAggregate(p.TreeNodeInstance, p.Publics, commitments)
 	if err != nil {
 		return err
 	}
-	coSiChallenge, err := cosi.Challenge(network.Suite, commitment,
-		p.Root().PublicAggregateSubTree, p.Proposal)
+
+	coSiChallenge, err := cosi.Challenge(p.Suite(), commitment, finalMask.AggregatePublic, p.Proposal)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (p *CoSiRootNode) Dispatch() error {
 	}
 	log.Lvl3(p.ServerIdentity().Address, "starts final signature")
 	var signature []byte
-	signature, err = cosi.Sign(p.Suite(), commitment, response, mask)
+	signature, err = cosi.Sign(p.Suite(), commitment, response, finalMask)
 	if err != nil {
 		return err
 	}

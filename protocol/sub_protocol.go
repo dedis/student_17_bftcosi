@@ -135,7 +135,7 @@ func (p *CoSiSubProtocolNode) Dispatch() error {
 	} else {
 		var commitment abstract.Point
 		var mask *cosi.Mask
-		secret, commitment, mask, err = generatePersonalCommitment(p.TreeNodeInstance, p.Publics, commitments)
+		secret, commitment, mask, err = generateCommitmentAndAggregate(p.TreeNodeInstance, p.Publics, commitments)
 		if err != nil {
 			return err
 		}
