@@ -6,8 +6,7 @@ CloseWait = 6000
 Bandwidth = 10 # Mb/s, only in mininet
 Delay = 50 # ms, only in mininet
 
-Hosts, NSubtrees
-5, 1
-5, 2
-100, 3
-1000, 25
+Hosts, NSubtrees, FailingSubleaders,FailingLeafs
+5, 1, 0, 0
+5, 1, 1, 0
+5, 2, 0, 2

@@ -64,7 +64,7 @@ func TestProtocol(t *testing.T) {
 }
 
 // Tests unresponsive leaves in various tree configurations
-func TestUnresponsiveLeaves(t *testing.T) {
+func TestUnresponsiveLeafs(t *testing.T) {
 	//log.SetDebugVisible(3)
 
 	local := onet.NewLocalTest()
@@ -97,16 +97,16 @@ func TestUnresponsiveLeaves(t *testing.T) {
 			cosiProtocol.LeavesTimeout = protocol.DefaultLeavesTimeout / 5000
 
 			//find first subtree leaves servers based on GenTree function
-			exampleTree, err := protocol.GenTrees(tree.Roster, nNodes, nSubtrees)
+			leafsServerIdentities, err := protocol.GetLeafsIDs(tree, nNodes, nSubtrees)
 			if err != nil {
-				local.CloseAll()
-				t.Fatal("Error in creation of example tree:", err)
+				t.Fatal(err)
 			}
-			leavesServerIdentities := exampleTree[0].Root.Children[0].Children
+			failing := len(leafsServerIdentities) / 3 //we render unresponsive one third of leafs
+			failingLeafsServerIdentities := leafsServerIdentities[:failing]
 			firstLeavesServers := make([]*onet.Server, 0)
 			for _, s := range servers {
-				for _, l := range leavesServerIdentities {
-					if s.ServerIdentity.ID == l.ServerIdentity.ID {
+				for _, l := range failingLeafsServerIdentities {
+					if s.ServerIdentity.ID == l {
 						firstLeavesServers = append(firstLeavesServers, s)
 						break
 					}
@@ -124,11 +124,11 @@ func TestUnresponsiveLeaves(t *testing.T) {
 			err = cosiProtocol.Start()
 			if err != nil {
 				local.CloseAll()
-				t.Fatal("Error in starting of protocol:", err)
+				t.Fatal("error in starting of protocol:", err)
 			}
 
 			//get and verify signature
-			threshold := nNodes - len(exampleTree[0].Root.Children[0].Children)
+			threshold := nNodes - failing
 			err = getAndVerifySignature(cosiProtocol, publics, proposal, cosi.ThresholdPolicy{T:threshold})
 			if err != nil {
 				local.CloseAll()
@@ -174,23 +174,25 @@ func TestUnresponsiveSubleader(t *testing.T) {
 			cosiProtocol.SubleaderTimeout = protocol.DefaultSubleaderTimeout / 7000
 
 			//find first subleader server based on genTree function
-			exampleTree, err := protocol.GenTrees(tree.Roster, nNodes, nSubtrees)
+			subleaderIds, err := protocol.GetSubleaderIDs(tree, nNodes, nSubtrees)
 			if err != nil {
 				local.CloseAll()
-				t.Fatal("Error in creation of example tree:", err)
+				t.Fatal(err)
+			} else if len(subleaderIds) < 1 {
+				local.CloseAll()
+				t.Fatal("found no subleader in generated tree with ", nNodes, "nodes and", nSubtrees, "subtrees")
 			}
-			subleaderServerIdentity := exampleTree[0].Root.Children[0].ServerIdentity
 			var firstSubleaderServer *onet.Server
 			for _, s := range servers {
-				if s.ServerIdentity.ID == subleaderServerIdentity.ID {
+				if s.ServerIdentity.ID == subleaderIds[0] {
 					firstSubleaderServer = s
 					break
 				}
 			}
 
-			//setup message interception on first subleader
+			//setup message interception on first subleader //TODO: intercept only root's announcements
 			firstSubleaderServer.RegisterProcessorFunc(onet.ProtocolMsgID, func(e *network.Envelope) {
-				if e.ServerIdentity.ID == exampleTree[0].Root.ServerIdentity.ID {
+				if e.ServerIdentity.ID == tree.Root.ServerIdentity.ID {
 					_, msg, err := network.Unmarshal(e.Msg.(*onet.ProtocolMsg).MsgSlice)
 					if err != nil {
 						local.CloseAll()

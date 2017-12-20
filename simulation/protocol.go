@@ -43,6 +43,8 @@ func init() {
 type SimulationProtocol struct {
 	onet.SimulationBFTree
 	NSubtrees int
+	FailingSubleaders int
+	FailingLeafs int
 }
 
 // NewSimulationProtocol is used internally to register the simulation (see the init()
@@ -57,8 +59,7 @@ func NewSimulationProtocol(config string) (onet.Simulation, error) {
 }
 
 // Setup implements onet.Simulation.
-func (s *SimulationProtocol) Setup(dir string, hosts []string) (
-	*onet.SimulationConfig, error) {
+func (s *SimulationProtocol) Setup(dir string, hosts []string) (*onet.SimulationConfig, error) {
 	sc := &onet.SimulationConfig{}
 	s.CreateRoster(sc, hosts, 2000)
 	err := s.CreateTree(sc)
@@ -76,6 +77,49 @@ func (s *SimulationProtocol) Node(config *onet.SimulationConfig) error {
 	index, _ := config.Roster.Search(config.Server.ServerIdentity.ID)
 	if index < 0 {
 		log.Fatal("Didn't find this node in roster")
+	}
+
+	//get subleader ids
+	subleadersIds, err := protocol.GetSubleaderIDs(config.Tree, s.Hosts, s.NSubtrees)
+	if err != nil {
+		return err
+	}
+	if len(subleadersIds) > s.FailingSubleaders {
+		subleadersIds = subleadersIds[:s.FailingSubleaders]
+	}
+
+	//get leafs ids
+	leafsIds, err := protocol.GetLeafsIDs(config.Tree, s.Hosts, s.NSubtrees)
+	if err != nil {
+		return err
+	}
+	if len(leafsIds) > s.FailingLeafs {
+		leafsIds = leafsIds[:s.FailingLeafs]
+	}
+
+	to_intercept := append(leafsIds, subleadersIds...)
+
+	//intercept announcements on some nodes
+	for _, id := range to_intercept {
+		if id == config.Server.ServerIdentity.ID {
+			log.Lvl2("as")
+			config.Server.RegisterProcessorFunc(onet.ProtocolMsgID, func(e *network.Envelope) {
+				//get message
+				_, msg, err := network.Unmarshal(e.Msg.(*onet.ProtocolMsg).MsgSlice)
+				if err != nil {
+					log.Fatal("error while unmarshaling a message:", err)
+					return
+				}
+
+				switch msg.(type) { //ignore announcements
+				case *protocol.Announcement:
+					break
+				default:
+					config.Overlay.Process(e)
+				}
+			})
+		break //this node has been found
+		}
 	}
 	log.Lvl3("Initializing node-index", index)
 	return s.SimulationBFTree.Node(config)
@@ -98,6 +142,8 @@ func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
 		proto := p.(*protocol.CoSiRootNode)
 		proto.NSubtrees = s.NSubtrees
 		proto.Proposal = proposal
+		proto.SubleaderTimeout = protocol.DefaultSubleaderTimeout / 10000
+		proto.LeavesTimeout = protocol.DefaultLeavesTimeout / 10000
 		proto.CreateProtocol = func(name string, t *onet.Tree) (onet.ProtocolInstance, error) {
 			return config.Overlay.CreateProtocol(name, t, onet.NilServiceID)
 		}
@@ -115,7 +161,8 @@ func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
 		}
 
 		//verify signature
-		err = cosi.Verify(network.Suite, publics, proposal, Signature, cosi.CompletePolicy{})
+		threshold := s.Hosts - s.FailingLeafs - s.FailingSubleaders
+		err = cosi.Verify(network.Suite, publics, proposal, Signature, cosi.ThresholdPolicy{threshold})
 		if err != nil {
 			return fmt.Errorf("error while verifying signature:%s", err)
 		}

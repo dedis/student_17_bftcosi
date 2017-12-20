@@ -6,6 +6,7 @@ import (
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 	"fmt"
+	"gopkg.in/dedis/onet.v1/network"
 )
 
 // generateCommitmentAndAggregate generates a personal secret and commitment
@@ -61,11 +62,11 @@ func generateCommitmentAndAggregate(t *onet.TreeNodeInstance, publics []abstract
 
 // generateResponse generates a personal response based on the secret
 // and returns the aggregated response of all children and the node
-func generateResponse(t *onet.TreeNodeInstance, structResponse []StructResponse, secret abstract.Scalar, challenge abstract.Scalar) (abstract.Scalar, error) {
+func generateResponse(t *onet.TreeNodeInstance, structResponses []StructResponse, secret abstract.Scalar, challenge abstract.Scalar) (abstract.Scalar, error) {
 
 	if t == nil {
 		return nil, fmt.Errorf("TreeNodeInstance should not be nil, but is")
-	} else if structResponse == nil {
+	} else if structResponses == nil {
 		return nil, fmt.Errorf("StructResponse should not be nil, but is")
 	} else if secret == nil {
 		return nil, fmt.Errorf("secret should not be nil, but is")
@@ -75,7 +76,7 @@ func generateResponse(t *onet.TreeNodeInstance, structResponse []StructResponse,
 
 	//extract lists of responses
 	var responses []abstract.Scalar
-	for _, c := range structResponse {
+	for _, c := range structResponses {
 		responses = append(responses, c.CoSiReponse)
 	}
 
@@ -96,4 +97,38 @@ func generateResponse(t *onet.TreeNodeInstance, structResponse []StructResponse,
 		len(responses), "responses")
 
 	return aggResponse, nil
+}
+
+
+func GetSubleaderIDs(tree *onet.Tree, nNodes, nSubtrees int) ([]network.ServerIdentityID, error) {
+	exampleTrees, err := GenTrees(tree.Roster, nNodes, nSubtrees)
+	if err != nil {
+		return nil, fmt.Errorf("error in creation of example tree:%s", err)
+	}
+	subleadersIDs := make([]network.ServerIdentityID, 0)
+	for _, subtree := range exampleTrees {
+		if len(subtree.Root.Children) < 1 {
+			return nil, fmt.Errorf("expected a subtree with at least a subleader, but found none")
+		}
+		subleadersIDs = append(subleadersIDs, subtree.Root.Children[0].ServerIdentity.ID)
+	}
+	return subleadersIDs, nil
+}
+
+
+func GetLeafsIDs(tree *onet.Tree, nNodes, nSubtrees int) ([]network.ServerIdentityID, error) {
+	exampleTrees, err := GenTrees(tree.Roster, nNodes, nSubtrees)
+	if err != nil {
+		return nil, fmt.Errorf("error in creation of example tree:%s", err)
+	}
+	leafsIDs := make([]network.ServerIdentityID, 0)
+	for _, subtree := range exampleTrees {
+		if len(subtree.Root.Children) < 1 {
+			return nil, fmt.Errorf("expected a subtree with at least a subleader, but found none")
+		}
+		for _, leaf := range subtree.Root.Children[0].Children {
+			leafsIDs = append(leafsIDs, leaf.ServerIdentity.ID)
+		}
+	}
+	return leafsIDs, nil
 }
