@@ -102,7 +102,6 @@ func (s *SimulationProtocol) Node(config *onet.SimulationConfig) error {
 	//intercept announcements on some nodes
 	for _, id := range to_intercept {
 		if id == config.Server.ServerIdentity.ID {
-			log.Lvl2("as")
 			config.Server.RegisterProcessorFunc(onet.ProtocolMsgID, func(e *network.Envelope) {
 				//get message
 				_, msg, err := network.Unmarshal(e.Msg.(*onet.ProtocolMsg).MsgSlice)

@@ -104,10 +104,11 @@ func (p *CoSiRootNode) Dispatch() error {
 	log.Lvl3("all protocols started")
 
 	//get all commitments, restart subprotocols where subleaders do not respond
-	commitments := make([]StructCommitment, len(trees))
-	for i:=0 ; i<len(coSiSubProtocols) ; i++ {
-		subProtocol := coSiSubProtocols[i]
-		for commitments[i].CoSiCommitment == nil {
+	commitments := make([]StructCommitment, 0)
+	runningSubProtocols := make([]*CoSiSubProtocolNode, 0)
+	subtrees:
+	for i, subProtocol := range coSiSubProtocols {
+		for {
 			select {
 			case _ = <-subProtocol.subleaderNotResponding:
 				log.Lvlf2("subleader from tree %d failed, restarting it", i)
@@ -119,7 +120,8 @@ func (p *CoSiRootNode) Dispatch() error {
 				subleaderID := trees[i].Root.Children[0].RosterIndex
 				newSubleaderID := subleaderID +1
 				if newSubleaderID >= len(trees[i].Roster.List) {
-					newSubleaderID = 1
+					log.Lvl2("subprotocol", i,  "failed with every subleader, ignoring this subtree")
+					continue subtrees
 				}
 				trees[i], err = GenSubtree(trees[i].Roster, newSubleaderID)
 				if err != nil {
@@ -131,9 +133,10 @@ func (p *CoSiRootNode) Dispatch() error {
 				if err != nil {
 					return fmt.Errorf("error in restarting of subprotocol: %s", err)
 				}
-				coSiSubProtocols[i] = subProtocol
 			case commitment := <-subProtocol.subCommitment:
-				commitments[i] = commitment
+				runningSubProtocols = append(runningSubProtocols,subProtocol)
+				commitments = append(commitments, commitment)
+				continue subtrees
 			case <-time.After(p.ProtocolTimeout):
 				return fmt.Errorf("didn't get commitment in time")
 			}
@@ -154,22 +157,21 @@ func (p *CoSiRootNode) Dispatch() error {
 	structChallenge := StructChallenge{p.TreeNode(), Challenge{coSiChallenge}}
 
 	//send challenge to every subprotocol
-	for _, coSiProtocol := range coSiSubProtocols {
+	for _, coSiProtocol := range runningSubProtocols {
 		subProtocol := coSiProtocol
 		subProtocol.ChannelChallenge <- structChallenge
 	}
 
 	//get response from all subprotocols
-	responses := make([]StructResponse, len(trees))
-	for i, cosiSubProtocol := range coSiSubProtocols {
+	responses := make([]StructResponse, 0)
+	for _, cosiSubProtocol := range runningSubProtocols {
 		subProtocol := cosiSubProtocol
-		for responses[i].CoSiReponse == nil {
-			select {
-			case response := <-subProtocol.subResponse:
-				responses[i] = response
-			case <-time.After(p.ProtocolTimeout):
-				return fmt.Errorf("didn't finish in time")
-			}
+		select {
+		case response := <-subProtocol.subResponse:
+			responses = append(responses, response)
+			continue
+		case <-time.After(p.ProtocolTimeout):
+			return fmt.Errorf("didn't finish in time")
 		}
 	}
 
