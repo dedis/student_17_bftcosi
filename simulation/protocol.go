@@ -141,8 +141,8 @@ func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
 		proto := p.(*protocol.CoSiRootNode)
 		proto.NSubtrees = s.NSubtrees
 		proto.Proposal = proposal
-		proto.SubleaderTimeout = protocol.DefaultSubleaderTimeout / 10000
-		proto.LeavesTimeout = protocol.DefaultLeavesTimeout / 10000
+		proto.SubleaderTimeout = protocol.DefaultSubleaderTimeout / 2000
+		proto.LeavesTimeout = protocol.DefaultLeavesTimeout / 2000
 		proto.CreateProtocol = func(name string, t *onet.Tree) (onet.ProtocolInstance, error) {
 			return config.Overlay.CreateProtocol(name, t, onet.NilServiceID)
 		}

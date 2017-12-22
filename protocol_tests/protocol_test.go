@@ -19,8 +19,8 @@ func TestProtocol(t *testing.T) {
 	//log.SetDebugVisible(3)
 
 	local := onet.NewLocalTest()
-	nodes := []int{1, 2, 5, 13, 24}
-	subtrees := []int{1, 2, 5}
+	nodes := []int{1, 2, 5, 13, 24, 100}
+	subtrees := []int{1, 2, 5, 9}
 	proposal := []byte{0xFF}
 
 	for _, nNodes := range nodes {

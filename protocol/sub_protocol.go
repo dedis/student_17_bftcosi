@@ -104,7 +104,10 @@ func (p *CoSiSubProtocolNode) Dispatch() error {
 		loop:
 		for i:=0 ; i<len(p.Children()) ; i++ {
 			select {
-			case commitment := <-p.ChannelCommitment:
+			case commitment, channelOpen := <-p.ChannelCommitment:
+				if !channelOpen {
+					return nil
+				}
 				commitments = append(commitments, commitment)
 			case <-t:
 				break loop
