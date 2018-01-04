@@ -23,7 +23,6 @@ func init() {
 // It also defines a channel that will receive the final signature.
 type CoSiRootNode struct {
 	*onet.TreeNodeInstance
-	Publics					[]abstract.Point
 
 	NSubtrees      			int
 	Proposal       			[]byte
@@ -31,9 +30,11 @@ type CoSiRootNode struct {
 	ProtocolTimeout			time.Duration
 	SubleaderTimeout		time.Duration
 	LeavesTimeout			time.Duration
-	hasStopped       		bool //used since Shutdown can be called multiple time
 
+	publics 				[]abstract.Point
+	hasStopped       		bool //used since Shutdown can be called multiple time
 	start					chan bool
+
 	FinalSignature			chan []byte
 }
 
@@ -48,11 +49,11 @@ func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	}
 
 	c := &CoSiRootNode{
-		TreeNodeInstance:       n,
-		Publics:				list,
-		hasStopped:				false,
-		start: 					make(chan bool),
-		FinalSignature:			make(chan []byte),
+		TreeNodeInstance: n,
+		publics:          list,
+		hasStopped:       false,
+		start:            make(chan bool),
+		FinalSignature:   make(chan []byte),
 	}
 
 	return c, nil
@@ -145,7 +146,7 @@ func (p *CoSiRootNode) Dispatch() error {
 
 	//generate challenge
 	log.Lvl3("root-node generating global challenge")
-	secret, commitment, finalMask, err := generateCommitmentAndAggregate(p.TreeNodeInstance, p.Publics, commitments)
+	secret, commitment, finalMask, err := generateCommitmentAndAggregate(p.TreeNodeInstance, p.publics, commitments)
 	if err != nil {
 		return err
 	}
@@ -227,7 +228,7 @@ func (p *CoSiRootNode) startSubProtocol (tree *onet.Tree) (*CoSiSubProtocolNode,
 	}
 
 	coSiSubProtocol := pi.(*CoSiSubProtocolNode)
-	coSiSubProtocol.Publics = p.Publics
+	coSiSubProtocol.Publics = p.publics
 	coSiSubProtocol.Proposal = p.Proposal
 	coSiSubProtocol.SubleaderTimeout = p.SubleaderTimeout
 	coSiSubProtocol.LeavesTimeout = p.LeavesTimeout

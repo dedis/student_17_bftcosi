@@ -93,7 +93,10 @@ func (p *CoSiSubProtocolNode) Dispatch() error {
 	commitments := make([]StructCommitment, 0)
 	if p.IsRoot() {
 		select { //one commitment expected
-		case commitment:= <-p.ChannelCommitment:
+		case commitment, channelOpen:= <-p.ChannelCommitment:
+			if !channelOpen {
+				return nil
+			}
 			commitments = append(commitments, commitment)
 		case <-time.After(p.SubleaderTimeout):
 			p.subleaderNotResponding <- true
@@ -170,7 +173,10 @@ func (p *CoSiSubProtocolNode) Dispatch() error {
 	responses := make([]StructResponse, 0)
 
 	for  i:=0;i<len(committedChildren);i++ {
-		response := <-p.ChannelResponse
+		response, channelOpen := <-p.ChannelResponse
+		if !channelOpen {
+			return nil
+		}
 		responses = append(responses, response)
 	}
 	log.Lvl3(p.ServerIdentity().Address, "received all", len(responses),"response(s)")

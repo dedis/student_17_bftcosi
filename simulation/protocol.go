@@ -126,6 +126,7 @@ func (s *SimulationProtocol) Node(config *onet.SimulationConfig) error {
 
 // Run implements onet.Simulation.
 func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
+	log.SetDebugVisible(2)
 	size := config.Tree.Size()
 	log.Lvl2("Size is:", size, "rounds:", s.Rounds)
 	for round := 0; round < s.Rounds; round++ {
@@ -141,8 +142,8 @@ func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
 		proto := p.(*protocol.CoSiRootNode)
 		proto.NSubtrees = s.NSubtrees
 		proto.Proposal = proposal
-		proto.SubleaderTimeout = protocol.DefaultSubleaderTimeout / 2000
-		proto.LeavesTimeout = protocol.DefaultLeavesTimeout / 2000
+		proto.SubleaderTimeout = protocol.DefaultSubleaderTimeout / 3000
+		proto.LeavesTimeout = protocol.DefaultLeavesTimeout / 15000
 		proto.CreateProtocol = func(name string, t *onet.Tree) (onet.ProtocolInstance, error) {
 			return config.Overlay.CreateProtocol(name, t, onet.NilServiceID)
 		}

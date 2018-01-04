@@ -11,7 +11,6 @@ import (
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"time"
 	"fmt"
-	"reflect"
 )
 
 // Tests various trees configurations
@@ -190,18 +189,23 @@ func TestUnresponsiveSubleader(t *testing.T) {
 				}
 			}
 
-			//setup message interception on first subleader //TODO: intercept only root's announcements
+			//setup message interception on first subleader
 			firstSubleaderServer.RegisterProcessorFunc(onet.ProtocolMsgID, func(e *network.Envelope) {
 				if e.ServerIdentity.ID == tree.Root.ServerIdentity.ID {
 					_, msg, err := network.Unmarshal(e.Msg.(*onet.ProtocolMsg).MsgSlice)
 					if err != nil {
-						local.CloseAll()
 						t.Fatal("error while unmarshelling message", err)
+						return
 					}
-					log.Lvl2(firstSubleaderServer.Address(), "Dropped message from root of type:", reflect.TypeOf(msg))
-				} else {
-					local.Overlays[firstSubleaderServer.ServerIdentity.ID].Process(e)
+
+					switch msg.(type) { //ignore announcements
+					case *protocol.Announcement:
+						log.Lvl2(firstSubleaderServer.Address(), "Dropped announcement from root")
+						return
+					}
 				}
+
+				local.Overlays[firstSubleaderServer.ServerIdentity.ID].Process(e)
 			})
 
 			//start protocol
